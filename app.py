@@ -10,6 +10,7 @@ from milestones  import check_and_award, get_milestone_context
 from invitations import maybe_generate_invitation
 import random
 import os
+from story import get_or_create_beat, beat_triggered, BEAT_DEFINITIONS
 
 app = Flask(__name__)
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///game.db')
@@ -132,6 +133,15 @@ class Invitation(db.Model):
     expires_day  = db.Column(db.Integer)
     created_day  = db.Column(db.Integer)
     is_active    = db.Column(db.Boolean, default=True)
+
+class StoryBeat(db.Model):
+    id        = db.Column(db.Integer, primary_key=True)
+    actor_id  = db.Column(db.Integer, db.ForeignKey('actor.id'), nullable=False)
+    beat_key  = db.Column(db.String(40))       # e.g. 'first_blockbuster'
+    title     = db.Column(db.String(80))
+    emoji     = db.Column(db.String(10))
+    narrative = db.Column(db.Text)
+    game_day  = db.Column(db.Integer)
 
 # ─────────────────────────────────────────────────────
 #  PERSONA STARTING STATS
@@ -275,12 +285,19 @@ def create_actor():
     db.session.add(actor)
     db.session.commit()
 
+
+    beat = get_or_create_beat('arrival', actor, {}, db, StoryBeat)
+    db.session.commit()
+    return redirect(url_for('dashboard', actor_id=actor.id, story_beat_id=beat.id))
+
     return redirect(url_for('dashboard', actor_id=actor.id))
 
 # Dashboard — loads actor from DB and passes to HTML
 @app.route('/dashboard/<int:actor_id>')
 def dashboard(actor_id):
     actor = db.get_or_404(Actor, actor_id)
+    story_beat_id = request.args.get('story_beat_id', type=int)
+    story_beat    = StoryBeat.query.get(story_beat_id) if story_beat_id else None
 
     offer_count = JobApplication.query.filter_by(
         actor_id=actor_id, status='offered'
@@ -308,6 +325,7 @@ def dashboard(actor_id):
         active_film_count=active_film_count,
         prestige=prestige,
         stats=stats,
+        story_beat=story_beat,
         active_controversy=active_controversy,
     )
 
@@ -315,6 +333,8 @@ def dashboard(actor_id):
 @app.route('/job-board/<int:actor_id>')
 def job_board(actor_id):
     actor = Actor.query.get_or_404(actor_id)
+    story_beat_id = request.args.get('story_beat_id', type=int)
+    story_beat    = StoryBeat.query.get(story_beat_id) if story_beat_id else None
 
     # Generate fresh listings for the actor's industry
     listings = generate_job_board(actor.industry, count=10)
@@ -338,6 +358,7 @@ def job_board(actor_id):
         actor=actor,
         eligible_listings=eligible_listings,
         invite_count=invite_count,
+        story_beat=story_beat,
         ineligible_listings=ineligible_listings
     )
 
@@ -369,6 +390,15 @@ def apply_role(actor_id):
     )
     db.session.add(application)
     db.session.commit()
+
+    story_beat_id = None
+    if not beat_triggered('first_audition', actor_id, StoryBeat):
+        beat = get_or_create_beat('first_audition', actor, {}, db, StoryBeat)
+        db.session.commit()
+        story_beat_id = beat.id
+
+    flash(f'Application submitted for {role_type} in "{movie_title}". Check back in a few days!', 'success')
+    return redirect(url_for('job_board', actor_id=actor_id, story_beat_id=story_beat_id))
 
     flash(f'Application submitted for {role_type} in "{movie_title}". Check back in a few days!', 'success')
     return redirect(url_for('job_board', actor_id=actor_id))
@@ -405,6 +435,7 @@ def do_activity_route(actor_id):
 @app.route('/rest/<int:actor_id>', methods=['POST'])
 def rest(actor_id):
     actor = db.get_or_404(Actor, actor_id)
+    pending_story_beat_id = None
 
     # 1. Process pending job applications
     pending_apps = JobApplication.query.filter(
@@ -432,6 +463,28 @@ def rest(actor_id):
             # Capture the first film that released this End Day
             if r.get('released_film_id') and released_film_id is None:
                 released_film_id = r['released_film_id']
+                released_film    = Film.query.get(released_film_id)
+                if released_film:
+                    ctx = {
+                        'movie_title': released_film.movie_title,
+                        'result':      released_film.box_office_result,
+                        'fame_change': released_film.fame_change,
+                        'score':       released_film.box_office_score,
+                    }
+                    # First release ever
+                    if not beat_triggered('first_release', actor_id, StoryBeat):
+                        release_beat = get_or_create_beat('first_release', actor, ctx, db, StoryBeat)
+                        pending_story_beat_id = release_beat.id
+                    # First blockbuster
+                    elif released_film.box_office_result == 'blockbuster' and not beat_triggered('first_blockbuster', actor_id, StoryBeat):
+                        block_beat = get_or_create_beat('first_blockbuster', actor, ctx, db, StoryBeat)
+                        pending_story_beat_id = block_beat.id
+                    # First flop or disaster
+                    elif released_film.box_office_result in ('flop', 'disaster') and not beat_triggered('first_flop', actor_id, StoryBeat):
+                        flop_beat = get_or_create_beat('first_flop', actor, ctx, db, StoryBeat)
+                        pending_story_beat_id = flop_beat.id
+
+    old_prestige_label = get_prestige(actor, Film.query.filter_by(actor_id=actor_id, status='released').all()).get('label')
 
     # 3. Advance the day and restore energy
     rest_result = do_rest(actor)
@@ -471,6 +524,14 @@ def rest(actor_id):
             db.session.add(new_c)
             flash('🚨 A controversy has broken out. Check your Dashboard to handle it.', 'error')
 
+            if not beat_triggered('first_controversy', actor_id, StoryBeat):
+                        ctx = {
+                            'headline': controversy_template['headline'],
+                            'type':     controversy_template['type'],
+                        }
+                        c_beat = get_or_create_beat('first_controversy', actor, ctx, db, StoryBeat)
+                        pending_story_beat_id = c_beat.id
+
         # Check and award milestones
     released_films_for_stats = Film.query.filter_by(actor_id=actor_id, status='released').all()
     all_apps_for_stats       = JobApplication.query.filter_by(actor_id=actor_id).all()
@@ -484,6 +545,23 @@ def rest(actor_id):
     if new_invitation:
         db.session.add(new_invitation)
         flash('✦ A private invitation has arrived. Check Invitations.', 'success')
+        if not beat_triggered('first_invitation', actor_id, StoryBeat):
+            inv_ctx = {
+                'movie_title': new_invitation.movie_title,
+                'director':    new_invitation.director,
+                'role_type':   new_invitation.role_type,
+            }
+            inv_beat = get_or_create_beat('first_invitation', actor, inv_ctx, db, StoryBeat)
+            pending_story_beat_id = inv_beat.id
+
+    new_prestige = get_prestige(actor, Film.query.filter_by(actor_id=actor_id, status='released').all())
+    if new_prestige.get('label') != old_prestige_label:
+        prestige_beat_key = f"prestige_{new_prestige.get('label','').lower().replace(' ','_')}"
+        if not beat_triggered(prestige_beat_key, actor_id, StoryBeat):
+            p_beat = get_or_create_beat('prestige_rank', actor,
+                {'rank_label': new_prestige.get('label')}, db, StoryBeat)
+            p_beat.beat_key = prestige_beat_key  # unique key per rank
+            pending_story_beat_id = p_beat.id
 
     db.session.commit()
     flash(rest_result['message'], 'success')
@@ -505,12 +583,15 @@ def rest(actor_id):
     if released_film_id:
         return redirect(url_for('box_office_reveal', actor_id=actor_id, film_id=released_film_id))
 
-    return redirect(url_for('applications', actor_id=actor_id))
+    return redirect(url_for('applications', actor_id=actor_id,
+                            story_beat_id=pending_story_beat_id))
 
 # Applications inbox
 @app.route('/applications/<int:actor_id>')
 def applications(actor_id):
     actor = db.get_or_404(Actor, actor_id)
+    story_beat_id = request.args.get('story_beat_id', type=int)
+    story_beat    = StoryBeat.query.get(story_beat_id) if story_beat_id else None
 
     # Offers are shown prominently at the top
     offers = JobApplication.query.filter_by(
@@ -531,6 +612,7 @@ def applications(actor_id):
         actor=actor,
         offers=offers,
         invite_count=invite_count,
+        story_beat=story_beat,
         all_applications=all_applications
     )
 
@@ -559,6 +641,21 @@ def accept(actor_id, app_id):
     )
     db.session.add(film)
     db.session.commit()
+
+    story_beat_id = None
+    if not beat_triggered('first_role', actor_id, StoryBeat):
+        context = {
+            'role_type':   application.role_type,
+            'movie_title': application.movie_title,
+            'director':    application.director,
+            'salary':      application.salary,
+        }
+        beat = get_or_create_beat('first_role', actor, context, db, StoryBeat)
+        db.session.commit()
+        story_beat_id = beat.id
+
+    return redirect(url_for('applications', actor_id=actor_id, story_beat_id=story_beat_id))
+
 
     flash(result['message'], 'success')
     flash(f'🎬 You are now filming "{application.movie_title}"! It will release after {application.shoot_days} shoot days.', 'info')
@@ -667,6 +764,8 @@ def filming_event_choice(actor_id, film_id, event_id, choice_id):
 def box_office_reveal(actor_id, film_id):
     actor = db.get_or_404(Actor, actor_id)
     film  = db.get_or_404(Film, film_id)
+    story_beat_id = request.args.get('story_beat_id', type=int)
+    story_beat    = StoryBeat.query.get(story_beat_id) if story_beat_id else None
 
     offer_count = JobApplication.query.filter_by(
         actor_id=actor_id, status='offered'
@@ -695,6 +794,7 @@ def box_office_reveal(actor_id, film_id):
         prestige=prestige,
         offer_count=offer_count,
         invite_count=invite_count,
+        story_beat=story_beat,
         result_theme=result_theme,
     )
 
@@ -858,6 +958,16 @@ def game_over(actor_id):
     all_applications = JobApplication.query.filter_by(actor_id=actor_id).all()
     prestige = get_prestige(actor, released_films)
     stats    = get_career_stats(actor, released_films, all_applications)
+    story_beat = None
+    if not beat_triggered('game_over', actor_id, StoryBeat):
+        ctx = {
+            'total_films': stats.get('total_films', 0),
+        }
+        story_beat = get_or_create_beat('game_over', actor, ctx, db, StoryBeat)
+        db.session.commit()
+
+    return render_template('game_over.html', actor=actor, prestige=prestige,
+                           stats=stats, story_beat=story_beat)
     return render_template('game_over.html', actor=actor, prestige=prestige, stats=stats)
 
 # Winner screen
@@ -867,6 +977,17 @@ def winner(actor_id):
     released_films   = Film.query.filter_by(actor_id=actor_id, status='released').all()
     all_applications = JobApplication.query.filter_by(actor_id=actor_id).all()
     stats = get_career_stats(actor, released_films, all_applications)
+    story_beat = None
+    if not beat_triggered('winner', actor_id, StoryBeat):
+        ctx = {
+            'total_films':  stats.get('total_films', 0),
+            'blockbusters': stats.get('blockbusters', 0),
+        }
+        story_beat = get_or_create_beat('winner', actor, ctx, db, StoryBeat)
+        db.session.commit()
+
+    return render_template('winner.html', actor=actor, stats=stats,
+                           story_beat=story_beat)
     return render_template('winner.html', actor=actor, stats=stats)
 
 # ─────────────────────────────────────────────────────

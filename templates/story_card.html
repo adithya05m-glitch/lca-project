@@ -1,0 +1,181 @@
+{% if story_beat %}
+<div id="story-card-overlay" class="story-overlay">
+  <div class="story-card">
+
+    <!-- Top glow based on beat type -->
+    <div class="story-glow"></div>
+
+    <!-- Eyebrow -->
+    <div class="story-eyebrow">
+      <span class="story-day-chip">Day {{ story_beat.game_day }}</span>
+      <span class="story-sep">·</span>
+      <span class="story-persona-chip">{{ actor.persona | title }}</span>
+    </div>
+
+    <!-- Emoji + Title -->
+    <div class="story-icon">{{ story_beat.emoji }}</div>
+    <div class="story-title">{{ story_beat.title }}</div>
+
+    <!-- Narrative text -->
+    <div class="story-narrative" id="story-narrative-text">
+      {% set paragraphs = story_beat.narrative.split('\n\n') %}
+      {% for para in paragraphs %}
+        {% if para.strip() %}
+          <p>{{ para.strip() }}</p>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <!-- Continue button -->
+    <button class="story-continue-btn" onclick="dismissStoryCard()">
+      Continue →
+    </button>
+
+    <!-- Actor name footer -->
+    <div class="story-footer">
+      {{ actor.name }}
+      &nbsp;·&nbsp;
+      {% if actor.industry == 'bolly' %}BOLLYWOOD
+      {% elif actor.industry == 'kolly' %}KOLLYWOOD
+      {% else %}TOLLYWOOD{% endif %}
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .story-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    animation: storyFadeIn 0.4s ease both;
+  }
+  @keyframes storyFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .story-card {
+    max-width: 540px; width: 100%;
+    text-align: center;
+    animation: storySlideUp 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    position: relative;
+  }
+  @keyframes storySlideUp {
+    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+
+  .story-glow {
+    position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+    width: 300px; height: 300px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,166,35,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .story-eyebrow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; margin-bottom: 24px;
+  }
+  .story-day-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--gold); background: rgba(245,166,35,0.12);
+    border: 1px solid rgba(245,166,35,0.2);
+    padding: 3px 10px; border-radius: 4px;
+  }
+  .story-sep { color: var(--text-dim); font-size: 12px; }
+  .story-persona-chip {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted); background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: 4px;
+  }
+
+  .story-icon {
+    font-size: 48px; margin-bottom: 12px;
+    animation: storyIconPop 0.6s cubic-bezier(0.22,1,0.36,1) 0.2s both;
+  }
+  @keyframes storyIconPop {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .story-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 7vw, 60px);
+    letter-spacing: 3px; line-height: 1;
+    color: var(--text); margin-bottom: 28px;
+  }
+
+  .story-narrative {
+    text-align: left;
+    font-size: 15px; line-height: 1.85;
+    color: #9090B0;
+    margin-bottom: 36px;
+    animation: storyTextFade 0.8s ease 0.3s both;
+  }
+  @keyframes storyTextFade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .story-narrative p {
+    margin-bottom: 16px;
+  }
+  .story-narrative p:last-child { margin-bottom: 0; }
+  /* Highlight actor name in narrative */
+  .story-narrative strong { color: var(--gold); font-weight: 500; }
+
+  .story-continue-btn {
+    background: var(--gold); color: #0D0D12;
+    border: none; padding: 14px 48px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 700;
+    letter-spacing: 0.5px; cursor: pointer;
+    transition: all 0.2s;
+    animation: storyBtnFade 0.6s ease 0.6s both;
+  }
+  @keyframes storyBtnFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .story-continue-btn:hover {
+    background: #FFB83A;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(245,166,35,0.4);
+  }
+
+  .story-footer {
+    margin-top: 20px;
+    font-size: 11px; color: #3A3A52;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 600px) {
+    .story-overlay { padding: 16px; align-items: flex-end; }
+    .story-card    { max-width: 100%; }
+    .story-narrative { font-size: 14px; }
+    .story-continue-btn { width: 100%; padding: 16px; }
+  }
+</style>
+
+<script>
+  function dismissStoryCard() {
+    var overlay = document.getElementById('story-card-overlay');
+    if (overlay) {
+      overlay.style.transition = 'opacity 0.3s ease';
+      overlay.style.opacity    = '0';
+      setTimeout(function() { overlay.style.display = 'none'; }, 300);
+    }
+  }
+  // Also dismiss on background click
+  document.getElementById('story-card-overlay').addEventListener('click', function(e) {
+    if (e.target === this) dismissStoryCard();
+  });
+</script>
+{% endif %}
