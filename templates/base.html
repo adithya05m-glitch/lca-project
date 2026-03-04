@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}LCA{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #0D0D12;
+      --surface:    #16161E;
+      --surface2:   #1E1E2A;
+      --border:     rgba(255,255,255,0.07);
+      --gold:       #F5A623;
+      --gold-dim:   rgba(245,166,35,0.15);
+      --gold-glow:  rgba(245,166,35,0.3);
+      --red:        #E63946;
+      --red-dim:    rgba(230,57,70,0.15);
+      --green:      #2DC653;
+      --green-dim:  rgba(45,198,83,0.12);
+      --blue:       #4A90D9;
+      --blue-dim:   rgba(74,144,217,0.15);
+      --purple:     #9B59B6;
+      --teal:       #1ABC9C;
+      --text:       #E8E8F0;
+      --text-muted: #6E6E8A;
+      --text-dim:   #3A3A52;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(180deg, rgba(13,13,18,0.98) 0%, rgba(13,13,18,0.85) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .nav-logo-icon {
+      width: 32px; height: 32px;
+      background: var(--gold);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-logo-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+    .nav-logo-text span { color: var(--gold); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      justify-content: center;
+    }
+    .nav-link {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 7px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .nav-link.active { background: var(--gold-dim); color: var(--gold); font-weight: 500; }
+
+    .nav-badge {
+      background: var(--red);
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 8px;
+      margin-left: 2px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .nav-day {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+    .nav-day span { color: var(--gold); font-weight: 600; }
+
+    .end-day-btn {
+      background: var(--gold);
+      color: #0D0D12;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .end-day-btn:hover {
+      background: #FFB83A;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--gold-glow);
+    }
+
+    /* ── FLASH MESSAGES ── */
+    .flash { padding: 14px 18px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; border: 1px solid; display: flex; align-items: flex-start; gap: 10px; }
+    .flash-success { background: rgba(45,198,83,0.08); border-color: rgba(45,198,83,0.25); color: #7CEFAA; }
+    .flash-error   { background: rgba(230,57,70,0.08);  border-color: rgba(230,57,70,0.25);  color: #F08090; }
+    .flash-info    { background: var(--surface2); border-color: var(--border); color: var(--text-muted); }
+
+    /* ── PAGE WRAPPER ── */
+    .page { position: relative; z-index: 1; }
+
+    /* ── SECTION HEADER ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .section-link { font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+    .section-link:hover { color: var(--gold); }
+
+    /* ── CARD BASE ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .card-gold { border-color: rgba(245,166,35,0.25); background: linear-gradient(135deg, rgba(245,166,35,0.06) 0%, rgba(245,166,35,0.02) 100%); }
+
+    /* ── STAT BARS ── */
+    .bar-track { background: var(--surface2); border-radius: 99px; height: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+    .bar-gold   { background: linear-gradient(90deg, var(--gold), #FFB83A); }
+    .bar-red    { background: linear-gradient(90deg, var(--red), #FF6B7A); }
+    .bar-blue   { background: linear-gradient(90deg, var(--blue), #7AB8F5); }
+    .bar-green  { background: linear-gradient(90deg, var(--green), #5EF08A); }
+    .bar-purple { background: linear-gradient(90deg, var(--purple), #C39BD3); }
+    .bar-teal   { background: linear-gradient(90deg, var(--teal), #48D1C0); }
+
+    /* ── BADGES ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 99px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .badge-gold    { background: rgba(245,166,35,0.15);  color: var(--gold); }
+    .badge-green   { background: rgba(45,198,83,0.12);   color: var(--green); }
+    .badge-red     { background: rgba(230,57,70,0.12);   color: var(--red); }
+    .badge-blue    { background: rgba(74,144,217,0.12);  color: var(--blue); }
+    .badge-muted   { background: var(--surface2); color: var(--text-muted); }
+    .badge-purple  { background: rgba(155,89,182,0.12); color: var(--purple); }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 22px; border-radius: 10px; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      letter-spacing: 0.3px; transition: all 0.2s; text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--gold); color: #0D0D12; }
+    .btn-primary:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 20px var(--gold-glow); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(230,57,70,0.2); }
+    .btn-danger:hover { background: rgba(230,57,70,0.2); }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 8px 16px; font-size: 12px; }
+    .btn-lg { padding: 14px 28px; font-size: 15px; }
+
+    /* ── ENERGY BAR ── */
+    .energy-bar-track { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; }
+    .energy-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+    .energy-high  { background: linear-gradient(90deg, var(--green), #5EF08A); box-shadow: 0 0 12px rgba(45,198,83,0.3); }
+    .energy-mid   { background: linear-gradient(90deg, var(--gold), #FFB83A); }
+    .energy-low   { background: linear-gradient(90deg, var(--red), #FF6B7A); box-shadow: 0 0 12px rgba(230,57,70,0.3); }
+
+    /* ── MONO TEXT ── */
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .nav { padding: 0 16px; }
+      .nav-links { display: none; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="page">
+
+{% block nav %}
+{% if actor is defined %}
+<nav class="nav">
+  <a href="/dashboard/{{ actor.id }}" class="nav-logo">
+    <div class="nav-logo-icon">🎬</div>
+    <div class="nav-logo-text">L<span>C</span>A</div>
+  </a>
+  <div class="nav-links">
+    <a href="/dashboard/{{ actor.id }}"    class="nav-link {% block nav_dash %}{% endblock %}">🏠 Dashboard</a>
+    <a href="/job-board/{{ actor.id }}"    class="nav-link {% block nav_jobs %}{% endblock %}">📋 Auditions</a>
+    <a href="/training/{{ actor.id }}"     class="nav-link {% block nav_train %}{% endblock %}">💪 Training</a>
+    <a href="/applications/{{ actor.id }}" class="nav-link {% block nav_inbox %}{% endblock %}">
+      📬 Inbox
+      {% if offer_count is defined and offer_count > 0 %}
+        <span class="nav-badge">{{ offer_count }}</span>
+      {% endif %}
+    </a>
+    <a href="/films/{{ actor.id }}"        class="nav-link {% block nav_films %}{% endblock %}">🎥 Films</a>
+    <a href="/invitations/{{ actor.id }}"
+        class="nav-link {% block nav_invites %}{% endblock %}">
+      ✦ Invitations
+      {% if invite_count is defined and invite_count > 0 %}
+    <span class="nav-badge" style="background:var(--gold);color:#0D0D12;">
+      {{ invite_count }}
+    </span>
+  {% endif %}
+</a>
+<a href="/milestones/{{ actor.id }}"
+   class="nav-link {% block nav_trophies %}{% endblock %}">
+  🏆 Trophies
+</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-day">DAY <span>{{ actor.game_day }}</span></div>
+    <form action="/rest/{{ actor.id }}" method="POST">
+      <button type="submit" class="end-day-btn">⏭ End Day</button>
+    </form>
+  </div>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block content %}{% endblock %}
+
+</div>
+</body>
+</html>

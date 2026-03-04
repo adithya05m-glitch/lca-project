@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Inbox — {{ actor.name }}{% endblock %}
+{% block nav_inbox %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 32px 28px; border-bottom: 1px solid var(--border);
+    background: radial-gradient(ellipse at 70% 40%, rgba(45,198,83,0.07) 0%, transparent 50%);
+  }
+  .page-label { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--green); margin-bottom: 8px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); }
+  .page-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .content-wrap { max-width: 720px; margin: 0 auto; padding: 28px 32px; }
+
+  /* Offer card */
+  .offer-card {
+    background: linear-gradient(135deg, rgba(245,166,35,0.08) 0%, rgba(245,166,35,0.03) 100%);
+    border: 1px solid rgba(245,166,35,0.3); border-radius: 16px; padding: 22px;
+    margin-bottom: 12px; position: relative; overflow: hidden;
+  }
+  .offer-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+  .offer-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .offer-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .offer-sub { font-size: 12px; color: var(--text-muted); }
+
+  .offer-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .offer-detail { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .offer-detail-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+  .offer-detail-val { font-size: 13px; font-weight: 500; }
+
+  .offer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .accept-btn {
+    background: var(--gold); color: #0D0D12; border: none; border-radius: 10px; padding: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; width: 100%;
+  }
+  .accept-btn:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,166,35,0.35); }
+  .decline-btn {
+    background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; width: 100%;
+  }
+  .decline-btn:hover { background: rgba(230,57,70,0.08); border-color: rgba(230,57,70,0.3); color: var(--red); }
+
+  /* History items */
+  .history-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px; transition: all 0.2s;
+  }
+  .history-item:hover { border-color: rgba(255,255,255,0.12); }
+  .history-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .history-sub { font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+  .section-divider { display: flex; align-items: center; gap: 16px; margin: 28px 0 20px; }
+  .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+  .section-divider-text { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+
+  @media (max-width: 600px) {
+    .content-wrap { padding: 20px 16px; }
+    .page-hero { padding: 24px 16px; }
+    .offer-details { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-label">📬 Applications Inbox</div>
+  <div class="page-title">My Inbox</div>
+  <div class="page-sub">
+    Day {{ actor.game_day }}
+    {% if offers %} · <span style="color:var(--gold);font-weight:600">{{ offers|length }} offer{{ 's' if offers|length > 1 }} waiting</span>{% endif %}
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- OFFERS -->
+  {% if offers %}
+  <div class="section-header">
+    <div class="section-title" style="color:var(--gold)">🤝 Offers — Action Required ({{ offers|length }})</div>
+  </div>
+
+  {% for app in offers %}
+  <div class="offer-card">
+    <div class="offer-header">
+      <div>
+        <div class="offer-title">{{ app.movie_title }}</div>
+        <div class="offer-sub">{{ app.role_type }} · {{ app.genre }} · Dir. {{ app.director }}</div>
+      </div>
+      <span class="badge badge-gold">OFFER</span>
+    </div>
+
+    <div class="offer-details">
+      <div class="offer-detail">
+        <div class="offer-detail-label">Salary</div>
+        <div class="offer-detail-val" style="color:var(--green);font-family:'JetBrains Mono',monospace">Rs.{{ "{:,}".format(app.salary) }}</div>
+      </div>
+      <div class="offer-detail">
+        <div class="offer-detail-label">Shoot Duration</div>
+        <div class="offer-detail-val">{{ app.shoot_days }} days</div>
+      </div>
+    </div>
+
+    <div class="offer-actions">
+      <form action="/accept/{{ actor.id }}/{{ app.id }}" method="POST">
+        <button type="submit" class="accept-btn">✓ Accept Role</button>
+      </form>
+      <form action="/decline/{{ actor.id }}/{{ app.id }}" method="POST">
+        <button type="submit" class="decline-btn">✕ Decline</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- HISTORY -->
+  {% if all_applications %}
+  <div class="section-divider">
+    <div class="section-divider-line"></div>
+    <div class="section-divider-text">Application History ({{ all_applications|length }})</div>
+    <div class="section-divider-line"></div>
+  </div>
+
+  {% for app in all_applications %}
+  <div class="history-item">
+    <div>
+      <div class="history-title">{{ app.movie_title }}</div>
+      <div class="history-sub">{{ app.role_type }} · Rs.{{ "{:,}".format(app.salary) }}</div>
+    </div>
+    <span class="badge
+      {% if app.status == 'accepted' %}badge-green
+      {% elif app.status == 'offered' %}badge-gold
+      {% elif app.status == 'rejected' %}badge-red
+      {% elif app.status == 'applied' %}badge-blue
+      {% else %}badge-muted{% endif %}">
+      {{ app.status|upper }}
+    </span>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:48px;text-align:center">
+    <div style="font-size:32px;margin-bottom:12px">📭</div>
+    <div style="font-size:14px;color:var(--text-muted);margin-bottom:20px">No applications yet. Head to the Job Board to start auditioning.</div>
+    <a href="/job-board/{{ actor.id }}" style="display:inline-block;padding:11px 24px;background:var(--gold);color:#0D0D12;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none">📋 Go to Job Board</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

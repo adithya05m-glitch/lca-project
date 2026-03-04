@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Invitations — {{ actor.name }}{% endblock %}
+{% block nav_invites %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 40px 28px;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse at 15% 70%, rgba(245,166,35,0.09) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 15%, rgba(74,144,217,0.07) 0%, transparent 45%);
+  }
+  .page-label { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); }
+  .page-sub   { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .content-wrap { max-width: 760px; margin: 0 auto; padding: 28px 40px 48px; }
+
+  /* ── INVITATION CARD ── */
+  .invite-card {
+    background: var(--surface);
+    border: 1px solid rgba(245,166,35,0.25);
+    border-radius: 16px; padding: 22px 24px;
+    margin-bottom: 14px; position: relative; overflow: hidden;
+    transition: all 0.2s;
+  }
+  .invite-card:hover { border-color: rgba(245,166,35,0.45); transform: translateY(-1px); box-shadow: 0 6px 28px rgba(0,0,0,0.3); }
+  .invite-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  .invite-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .invite-title-block { flex: 1; min-width: 0; }
+  .invite-eyebrow { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
+  .invite-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; color: var(--text); margin-bottom: 3px; line-height: 1.1; }
+  .invite-role  { font-size: 13px; color: var(--text-muted); }
+  .invite-tier-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 4px; flex-shrink: 0; margin-left: 16px;
+  }
+  .tier-A { background: rgba(245,166,35,0.15); color: var(--gold); border: 1px solid rgba(245,166,35,0.3); }
+  .tier-B { background: rgba(74,144,217,0.12); color: var(--blue); border: 1px solid rgba(74,144,217,0.25); }
+
+  .invite-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 16px;
+  }
+  .invite-stat { text-align: center; }
+  .invite-stat-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+  .invite-stat-val   { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--text); }
+  .invite-stat-val.gold  { color: var(--gold); }
+  .invite-stat-val.green { color: var(--green); }
+
+  .invite-reason {
+    background: rgba(245,166,35,0.05);
+    border: 1px solid rgba(245,166,35,0.15);
+    border-radius: 8px; padding: 12px 14px;
+    font-size: 13px; color: var(--text-muted);
+    font-style: italic; line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .invite-reason::before { content: '✦ '; color: var(--gold); font-style: normal; }
+
+  .invite-actions { display: flex; gap: 10px; }
+  .btn-accept {
+    flex: 1; padding: 12px; text-align: center;
+    background: var(--gold); color: #0D0D12;
+    border: none; border-radius: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .btn-accept:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,166,35,0.35); }
+  .btn-decline {
+    padding: 12px 18px;
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.18s;
+  }
+  .btn-decline:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+
+  .invite-expires {
+    font-size: 11px; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 10px;
+  }
+  .invite-expires.urgent { color: var(--red); }
+
+  /* Director stars */
+  .dir-stars { color: var(--gold); font-size: 11px; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 64px 32px; text-align: center;
+  }
+  .empty-icon  { font-size: 40px; margin-bottom: 16px; }
+  .empty-title { font-size: 15px; color: var(--text); font-weight: 500; margin-bottom: 8px; }
+  .empty-sub   { font-size: 13px; color: var(--text-muted); line-height: 1.6; max-width: 360px; margin: 0 auto 24px; }
+
+  /* ── HOW IT WORKS ── */
+  .how-card {
+    background: rgba(245,166,35,0.04);
+    border: 1px solid rgba(245,166,35,0.15);
+    border-radius: 14px; padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .how-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+  .how-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+  .how-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .how-threshold { font-family: 'JetBrains Mono', monospace; color: var(--gold); min-width: 80px; flex-shrink: 0; }
+  .how-desc { color: var(--text-muted); line-height: 1.5; }
+
+  @media (max-width: 640px) {
+    .invite-stats  { grid-template-columns: 1fr 1fr; }
+    .content-wrap  { padding: 20px 16px 40px; }
+    .page-hero     { padding: 24px 16px; }
+    .invite-actions { flex-direction: column; }
+    .btn-decline   { padding: 12px; text-align: center; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-label">✦ Private Invitations</div>
+  <div class="page-title">{{ actor.name }}</div>
+  <div class="page-sub">
+    {% if invitations %}
+      {{ invitations | length }} active invitation{{ 's' if invitations | length != 1 }} · Day {{ actor.game_day }}
+    {% else %}
+      No active invitations · Day {{ actor.game_day }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- HOW IT WORKS (always shown) -->
+  <div class="how-card">
+    <div class="how-label">How Invitations Work</div>
+    <div class="how-row">
+      <span class="how-threshold">Fame 75+</span>
+      <span class="how-desc">30% daily chance of an A-tier direct offer at 3× standard salary</span>
+    </div>
+    <div class="how-row">
+      <span class="how-threshold">Fame 50+</span>
+      <span class="how-desc">20% daily chance of an A-tier offer at 2× salary</span>
+    </div>
+    <div class="how-row">
+      <span class="how-threshold">Fame 30+</span>
+      <span class="how-desc">15% daily chance of a B-tier offer at 1.5× salary</span>
+    </div>
+    <div class="how-row">
+      <span class="how-threshold">Conn. 40+</span>
+      <span class="how-desc">12% daily chance of a B-tier offer via connections</span>
+    </div>
+    <div class="how-row">
+      <span class="how-threshold">Expires</span>
+      <span class="how-desc">Invitations expire after 5 days. No audition required — accept or decline.</span>
+    </div>
+  </div>
+
+  <!-- INVITATIONS LIST -->
+  {% if invitations %}
+    {% for inv in invitations %}
+    {% set days_left = inv.expires_day - actor.game_day %}
+    <div class="invite-card">
+
+      <div class="invite-header">
+        <div class="invite-title-block">
+          <div class="invite-eyebrow">
+            ✦ {{ inv.invite_type | title }} Invitation
+          </div>
+          <div class="invite-title">{{ inv.movie_title }}</div>
+          <div class="invite-role">{{ inv.role_type }} · {{ inv.genre }}</div>
+        </div>
+        <div class="invite-tier-badge tier-{{ inv.role_tier }}">{{ inv.role_tier }}-Tier</div>
+      </div>
+
+      <div class="invite-stats">
+        <div class="invite-stat">
+          <div class="invite-stat-label">Salary</div>
+          <div class="invite-stat-val green">₹{{ "{:,}".format(inv.salary) }}</div>
+        </div>
+        <div class="invite-stat">
+          <div class="invite-stat-label">Shoot Days</div>
+          <div class="invite-stat-val">{{ inv.shoot_days }}</div>
+        </div>
+        <div class="invite-stat">
+          <div class="invite-stat-label">Director</div>
+          <div class="invite-stat-val gold" style="font-size:12px">{{ inv.director }}</div>
+        </div>
+        <div class="invite-stat">
+          <div class="invite-stat-label">Rating</div>
+          <div class="invite-stat-val">
+            <span class="dir-stars">{% for i in range(inv.director_stars) %}★{% endfor %}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="invite-reason">{{ inv.invite_reason }}</div>
+
+      <div class="invite-actions">
+        <form action="/invitations/{{ actor.id }}/{{ inv.id }}/accept" method="POST" style="flex:1;">
+          <button type="submit" class="btn-accept" style="width:100%">
+            ✓ Accept Invitation
+          </button>
+        </form>
+        <form action="/invitations/{{ actor.id }}/{{ inv.id }}/decline" method="POST">
+          <button type="submit" class="btn-decline">Decline</button>
+        </form>
+      </div>
+
+      <div class="invite-expires {% if days_left <= 1 %}urgent{% endif %}">
+        {% if days_left <= 0 %}
+          Expires today
+        {% elif days_left == 1 %}
+          ⚠ Expires tomorrow (Day {{ inv.expires_day }})
+        {% else %}
+          Expires in {{ days_left }} days (Day {{ inv.expires_day }})
+        {% endif %}
+      </div>
+
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">✦</div>
+      <div class="empty-title">No Active Invitations</div>
+      <div class="empty-sub">
+        Exclusive offers arrive when your Fame or Connections reach the right threshold.
+        Keep building your career — the right people are watching.
+      </div>
+      <a href="/job-board/{{ actor.id }}"
+         style="display:inline-block;padding:11px 24px;background:var(--gold);color:#0D0D12;
+                border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;">
+        📋 Browse Open Roles
+      </a>
+    </div>
+  {% endif %}
+
+  <div style="text-align:center;margin-top:24px;">
+    <a href="/dashboard/{{ actor.id }}"
+       style="font-size:12px;color:var(--text-muted);text-decoration:none;">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

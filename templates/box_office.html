@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}Box Office — {{ film.movie_title }}{% endblock %}
+{% block nav_films %}active{% endblock %}
+
+{% block head %}
+<style>
+  /* ── RESULT HERO ── */
+  .result-hero {
+    padding: 56px 32px 48px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .result-hero.gold {
+    background: radial-gradient(ellipse at 50% 0%, rgba(245,166,35,0.18) 0%, transparent 65%);
+  }
+  .result-hero.green {
+    background: radial-gradient(ellipse at 50% 0%, rgba(45,198,83,0.15) 0%, transparent 65%);
+  }
+  .result-hero.blue {
+    background: radial-gradient(ellipse at 50% 0%, rgba(74,144,217,0.15) 0%, transparent 65%);
+  }
+  .result-hero.red {
+    background: radial-gradient(ellipse at 50% 0%, rgba(230,57,70,0.15) 0%, transparent 65%);
+  }
+  .result-hero::before {
+    content: attr(data-emoji);
+    position: absolute; font-size: 220px; opacity: 0.04;
+    top: -20px; left: 50%; transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .result-eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px;
+  }
+  .result-word {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 10vw, 96px);
+    letter-spacing: 4px;
+    line-height: 1;
+    margin-bottom: 12px;
+    animation: revealWord 0.6s ease both;
+  }
+  .result-word.gold   { color: var(--gold);  text-shadow: 0 0 40px rgba(245,166,35,0.4); }
+  .result-word.green  { color: var(--green); text-shadow: 0 0 40px rgba(45,198,83,0.4); }
+  .result-word.blue   { color: var(--blue);  text-shadow: 0 0 40px rgba(74,144,217,0.4); }
+  .result-word.red    { color: var(--red);   text-shadow: 0 0 40px rgba(230,57,70,0.4); }
+
+  .result-film { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 8px; }
+  .result-role { font-size: 13px; color: var(--text-muted); }
+
+  @keyframes revealWord {
+    from { opacity: 0; transform: scale(0.85); filter: blur(8px); }
+    to   { opacity: 1; transform: scale(1);    filter: blur(0); }
+  }
+
+  /* ── CONTENT ── */
+  .content-wrap { max-width: 760px; margin: 0 auto; padding: 28px 32px; }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: var(--text); }
+  .stat-value.gold  { color: var(--gold); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--red); }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 14px; margin-top: 24px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; display: inline-block;
+    width: 3px; height: 14px;
+    background: var(--gold); border-radius: 2px;
+  }
+
+  /* ── FAME CHANGE CARD ── */
+  .fame-card {
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .fame-card.positive { background: rgba(45,198,83,0.07);  border: 1px solid rgba(45,198,83,0.2); }
+  .fame-card.negative { background: rgba(230,57,70,0.07);  border: 1px solid rgba(230,57,70,0.2); }
+  .fame-card.neutral  { background: var(--surface);        border: 1px solid var(--border); }
+  .fame-emoji { font-size: 28px; }
+  .fame-text  { flex: 1; }
+  .fame-delta { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; }
+  .fame-delta.pos { color: var(--green); }
+  .fame-delta.neg { color: var(--red); }
+  .fame-delta.neu { color: var(--text-muted); }
+  .fame-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── SCORE BREAKDOWN ── */
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .breakdown-row {
+    display: flex; justify-content: space-between;
+    align-items: center; padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-key   { color: var(--text-muted); }
+  .breakdown-val   { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+
+  /* ── REVIEW CARD ── */
+  .review-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .review-eyebrow { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+  .review-text    { font-size: 14px; color: #B8B8D0; font-style: italic; line-height: 1.7; }
+
+  /* ── SCORE BAR ── */
+  .score-track { background: var(--surface2); border-radius: 99px; height: 6px; overflow: hidden; margin-top: 10px; }
+  .score-fill  { height: 100%; border-radius: 99px; }
+  .score-blockbuster { background: linear-gradient(90deg, var(--gold), #FFB83A); }
+  .score-hit          { background: linear-gradient(90deg, var(--green), #5EF08A); }
+  .score-average      { background: linear-gradient(90deg, var(--blue),  #7AB8F5); }
+  .score-flop         { background: linear-gradient(90deg, var(--red),   #FF6B7A); }
+  .score-disaster     { background: linear-gradient(90deg, #6B1010, var(--red)); }
+
+  /* ── ACTION BUTTONS ── */
+  .action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 28px;
+  }
+  .btn-action {
+    display: block; padding: 14px; text-align: center;
+    border-radius: 10px; font-size: 13px; font-weight: 600;
+    text-decoration: none; transition: all 0.2s;
+  }
+  .btn-primary-action {
+    background: var(--gold); color: #0D0D12;
+  }
+  .btn-primary-action:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(245,166,35,0.3); }
+  .btn-secondary-action {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary-action:hover { background: var(--surface2); }
+
+  @media (max-width: 600px) {
+    .stats-row  { grid-template-columns: 1fr 1fr; }
+    .action-row { grid-template-columns: 1fr; }
+    .content-wrap { padding: 20px 16px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- RESULT HERO -->
+<div class="result-hero {{ result_theme.color }}" data-emoji="{{ result_theme.emoji }}">
+  <div class="result-eyebrow">🎬 Box Office Result — Day {{ film.release_day }}</div>
+  <div class="result-word {{ result_theme.color }}">
+    {{ film.box_office_result | upper if film.box_office_result else 'RELEASED' }}
+  </div>
+  <div class="result-film">{{ film.movie_title }}</div>
+  <div class="result-role">{{ film.role_type }} · {{ film.genre }} · Dir. {{ film.director }}</div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- SCORE STATS ROW -->
+  <div class="stats-row" style="margin-top:0;">
+    <div class="stat-card">
+      <div class="stat-label">Score</div>
+      <div class="stat-value gold">{{ film.box_office_score | int }} / 100</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Fame Change</div>
+      <div class="stat-value {% if film.fame_change > 0 %}green{% elif film.fame_change < 0 %}red{% endif %}">
+        {% if film.fame_change > 0 %}+{% endif %}{{ film.fame_change }}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current Fame</div>
+      <div class="stat-value gold">{{ actor.fame }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Salary Earned</div>
+      <div class="stat-value">₹{{ "{:,}".format(film.salary) }}</div>
+    </div>
+  </div>
+
+  <!-- SCORE BAR -->
+  <div class="breakdown-card" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+      <span>Box Office Score</span>
+      <span style="font-family:'JetBrains Mono',monospace">{{ film.box_office_score | int }}/100</span>
+    </div>
+    <div class="score-track">
+      <div class="score-fill score-{{ film.box_office_result or 'average' }}"
+           style="width: {{ film.box_office_score }}%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:6px;">
+      <span>Disaster</span><span>Flop</span><span>Average</span><span>Hit</span><span>Blockbuster</span>
+    </div>
+  </div>
+
+  <!-- FAME CHANGE CARD -->
+  <div class="fame-card {% if film.fame_change > 0 %}positive{% elif film.fame_change < 0 %}negative{% else %}neutral{% endif %}">
+    <div class="fame-emoji">
+      {% if film.fame_change >= 15 %}🚀
+      {% elif film.fame_change >= 5 %}⭐
+      {% elif film.fame_change > 0 %}📈
+      {% elif film.fame_change < -10 %}💀
+      {% elif film.fame_change < 0 %}📉
+      {% else %}😐{% endif %}
+    </div>
+    <div class="fame-text">
+      <div class="fame-delta {% if film.fame_change > 0 %}pos{% elif film.fame_change < 0 %}neg{% else %}neu{% endif %}">
+        {% if film.fame_change > 0 %}+{% endif %}{{ film.fame_change }} Fame
+      </div>
+      <div class="fame-sub">
+        {% if film.fame_change >= 15 %}The industry is talking. Your fame has surged.
+        {% elif film.fame_change >= 5 %}A solid result. Your profile has grown.
+        {% elif film.fame_change > 0 %}A modest bump. Every bit counts.
+        {% elif film.fame_change == 0 %}No change to your fame. The film passed quietly.
+        {% elif film.fame_change > -10 %}A stumble. The industry noticed.
+        {% else %}A significant blow to your standing. Recovery will take time.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- SCORE BREAKDOWN -->
+  <div class="section-label">Film Details</div>
+  <div class="breakdown-card">
+    <div class="breakdown-row">
+      <span class="breakdown-key">Director</span>
+      <span class="breakdown-val">
+        {{ film.director }}
+        {% for i in range(film.director_stars) %}⭐{% endfor %}
+      </span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-key">Budget</span>
+      <span class="breakdown-val">{{ film.budget }}</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-key">Role</span>
+      <span class="breakdown-val">{{ film.role_type }} ({{ film.role_tier }}-Tier)</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-key">Genre</span>
+      <span class="breakdown-val">{{ film.genre }}</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-key">Shoot Days</span>
+      <span class="breakdown-val">{{ film.total_shoot_days }}</span>
+    </div>
+    {% if film.quality_score %}
+    <div class="breakdown-row">
+      <span class="breakdown-key">Film Quality Score</span>
+      <span class="breakdown-val" style="color:var(--gold)">{{ film.quality_score }} / 100</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- CRITIC REVIEW -->
+  {% if film.review %}
+  <div class="section-label">Critic Review</div>
+  <div class="review-card">
+    <div class="review-eyebrow">Press Review</div>
+    <div class="review-text">"{{ film.review }}"</div>
+  </div>
+  {% endif %}
+
+  <!-- PRESTIGE UPDATE -->
+  <div class="section-label">Career Standing</div>
+  <div class="breakdown-card">
+    <div class="breakdown-row">
+      <span class="breakdown-key">Prestige Rank</span>
+      <span class="breakdown-val">{{ prestige.emoji }} {{ prestige.label }}</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-key">Current Fame</span>
+      <span class="breakdown-val gold">{{ actor.fame }} / 100</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-key">Current Funds</span>
+      <span class="breakdown-val">₹{{ "{:,}".format(actor.funds) }}</span>
+    </div>
+    {% if prestige.next_rank %}
+    <div class="breakdown-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+      <span class="breakdown-key">Next Rank: {{ prestige.next_rank.label }}</span>
+      {% for need in prestige.next_rank.needs %}
+      <span style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">→ {{ need }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ACTION BUTTONS -->
+  <div class="action-row">
+    <a href="/job-board/{{ actor.id }}" class="btn-action btn-primary-action">
+      📋 Find Next Role
+    </a>
+    <a href="/dashboard/{{ actor.id }}" class="btn-action btn-secondary-action">
+      🏠 Back to Dashboard
+    </a>
+  </div>
+
+  <div style="text-align:center;margin-top:16px;">
+    <a href="/films/{{ actor.id }}"
+       style="font-size:12px;color:var(--text-muted);text-decoration:none;">
+      View full filmography →
+    </a>
+  </div>
+
+</div>
+{% endblock %}

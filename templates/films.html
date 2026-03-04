@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Filmography — {{ actor.name }}{% endblock %}
+{% block nav_films %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 32px 28px; border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse at 20% 60%, rgba(74,144,217,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(245,166,35,0.06) 0%, transparent 40%);
+  }
+  .page-label { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--blue); margin-bottom: 8px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); }
+  .page-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .content-wrap { max-width: 800px; margin: 0 auto; padding: 28px 32px; }
+
+  /* Active production card */
+  .production-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; margin-bottom: 12px;
+    position: relative; overflow: hidden;
+  }
+  .production-card.filming { border-color: rgba(74,144,217,0.3); }
+  .production-card.post    { border-color: rgba(155,89,182,0.3); }
+  .production-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .production-card.filming::before { background: linear-gradient(90deg, var(--blue), transparent); }
+  .production-card.post::before    { background: linear-gradient(90deg, var(--purple), transparent); }
+
+  .prod-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .prod-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .prod-sub { font-size: 12px; color: var(--text-muted); }
+  .prod-progress-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .prog-track { background: var(--surface2); border-radius: 99px; height: 6px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 99px; }
+  .prog-fill.filming { background: linear-gradient(90deg, var(--blue), #7AB8F5); }
+  .prog-fill.post    { background: linear-gradient(90deg, var(--purple), #C39BD3); }
+  .prod-meta { font-size: 11px; color: var(--text-dim); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+  /* Released film card */
+  .film-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; margin-bottom: 12px;
+    transition: all 0.2s;
+  }
+  .film-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+
+  .film-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .film-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .film-meta { font-size: 12px; color: var(--text-muted); }
+  .film-right { text-align: right; }
+
+  .fame-change { font-size: 12px; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+  .score-row { margin-top: 12px; }
+  .score-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+  .score-track { background: var(--surface2); border-radius: 99px; height: 5px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 99px; }
+  .score-blockbuster { background: linear-gradient(90deg, var(--gold), #FFB83A); }
+  .score-hit     { background: linear-gradient(90deg, var(--green), #5EF08A); }
+  .score-average { background: linear-gradient(90deg, var(--blue), #7AB8F5); }
+  .score-flop    { background: linear-gradient(90deg, var(--red), #FF6B7A); }
+  .score-disaster{ background: linear-gradient(90deg, #6B1010, var(--red)); }
+
+  .review-block {
+    margin-top: 14px; background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  }
+  .review-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+  .review-text { font-size: 13px; color: #B8B8D0; font-style: italic; line-height: 1.6; }
+
+  .section-divider { display: flex; align-items: center; gap: 16px; margin: 28px 0 20px; }
+  .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+  .section-divider-text { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+
+  @media (max-width: 600px) {
+    .content-wrap { padding: 20px 16px; }
+    .page-hero { padding: 24px 16px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-label">🎥 Filmography</div>
+  <div class="page-title">{{ actor.name }}</div>
+  <div class="page-sub">Day {{ actor.game_day }} · {{ released_films|length }} film{{ 's' if released_films|length != 1 }} released</div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- ACTIVE PRODUCTIONS -->
+  {% if active_films %}
+  <div class="section-header">
+    <div class="section-title" style="color:var(--blue)">🎬 Currently In Production ({{ active_films|length }})</div>
+  </div>
+
+  {% for film in active_films %}
+  {% set pct = ((film.days_completed / film.total_shoot_days) * 100)|int if film.total_shoot_days > 0 else 100 %}
+  <div class="production-card {{ 'filming' if film.status == 'filming' else 'post' }}">
+    <div class="prod-header">
+      <div>
+        <div class="prod-title">{{ film.movie_title }}</div>
+        <div class="prod-sub">{{ film.role_type }} · {{ film.genre }}</div>
+      </div>
+      <span class="badge {{ 'badge-blue' if film.status == 'filming' else 'badge-purple' }}">
+        {% if film.status == 'filming' %}🎬 FILMING{% else %}✂️ POST-PROD{% endif %}
+      </span>
+    </div>
+    <div class="prod-progress-row">
+      <span>Progress</span>
+      <span>{{ film.days_completed }} / {{ film.total_shoot_days }} days ({{ pct }}%)</span>
+    </div>
+    <div class="prog-track">
+      <div class="prog-fill {{ 'filming' if film.status == 'filming' else 'post' }}" style="width:{{ pct }}%"></div>
+    </div>
+    <div class="prod-meta">Dir. {{ film.director }} · Budget: {{ film.budget }}</div>
+    {% if film.status == 'filming' %}
+  {% if film.last_visit_day == actor.game_day %}
+    <div style="margin-top:12px;padding:10px;text-align:center;
+                background:rgba(255,255,255,0.04);border:1px solid var(--border);
+                border-radius:8px;color:var(--text-muted);font-size:12px;">
+      ✓ Set visited today — end the day to visit again
+    </div>
+  {% else %}
+    <a href="/filming/{{ actor.id }}/{{ film.id }}"
+       style="display:block;margin-top:12px;padding:10px;text-align:center;
+              background:rgba(74,144,217,0.15);border:1px solid rgba(74,144,217,0.3);
+              border-radius:8px;color:var(--blue);font-size:13px;font-weight:600;
+              text-decoration:none;transition:all 0.18s;">
+      🎬 Go to Set Today
+    </a>
+  {% endif %}
+{% endif %}
+
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- RELEASED FILMS -->
+  {% if released_films %}
+  {% if active_films %}
+  <div class="section-divider">
+    <div class="section-divider-line"></div>
+    <div class="section-divider-text">Released Films ({{ released_films|length }})</div>
+    <div class="section-divider-line"></div>
+  </div>
+  {% else %}
+  <div class="section-header">
+    <div class="section-title">Released Films ({{ released_films|length }})</div>
+  </div>
+  {% endif %}
+
+  {% for film in released_films %}
+  <div class="film-card">
+    <div class="film-header">
+      <div>
+        <div class="film-title">{{ film.movie_title }}</div>
+        <div class="film-meta">{{ film.role_type }} · {{ film.genre }} · Released Day {{ film.release_day }}</div>
+      </div>
+      <div class="film-right">
+        <span class="badge
+          {% if film.box_office_result == 'blockbuster' %}badge-gold
+          {% elif film.box_office_result == 'hit' %}badge-green
+          {% elif film.box_office_result == 'average' %}badge-blue
+          {% elif film.box_office_result == 'flop' or film.box_office_result == 'disaster' %}badge-red
+          {% else %}badge-muted{% endif %}">
+          {{ film.box_office_result|upper if film.box_office_result else 'UNRELEASED' }}
+        </span>
+        {% if film.fame_change is not none %}
+        <div class="fame-change" style="color:{% if film.fame_change > 0 %}var(--green){% else %}var(--red){% endif %}">
+          {% if film.fame_change > 0 %}+{% endif %}{{ film.fame_change }} Fame
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if film.box_office_score %}
+    <div class="score-row">
+      <div class="score-header">
+        <span>Box Office Score</span>
+        <span style="font-family:'JetBrains Mono',monospace">{{ film.box_office_score }}/100</span>
+      </div>
+      <div class="score-track">
+        <div class="score-fill score-{{ film.box_office_result or 'average' }}" style="width:{{ film.box_office_score }}%"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if film.review %}
+    <div class="review-block">
+      <div class="review-label">Critic Review</div>
+      <div class="review-text">"{{ film.review }}"</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% elif not active_films %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:52px;text-align:center">
+    <div style="font-size:36px;margin-bottom:14px">🎞️</div>
+    <div style="font-size:14px;color:var(--text-muted);margin-bottom:20px">No released films yet. Accept a role and start shooting!</div>
+    <a href="/job-board/{{ actor.id }}" style="display:inline-block;padding:11px 24px;background:var(--gold);color:#0D0D12;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none">📋 Find Roles</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

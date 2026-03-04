@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Trophies — {{ actor.name }}{% endblock %}
+{% block nav_trophies %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 40px 28px;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse at 10% 60%, rgba(245,166,35,0.10) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 20%, rgba(245,166,35,0.06) 0%, transparent 40%);
+  }
+  .page-label { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); }
+  .page-sub   { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .content-wrap { max-width: 800px; margin: 0 auto; padding: 28px 40px 48px; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 22px; margin-bottom: 28px;
+  }
+  .progress-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+  }
+  .progress-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+  .progress-frac  { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--gold); }
+  .progress-track { background: var(--surface2); border-radius: 99px; height: 6px; overflow: hidden; }
+  .progress-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--gold), #FFB83A); transition: width 0.5s ease; }
+  .progress-hint  { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+  /* ── CATEGORY SECTION ── */
+  .category-section { margin-bottom: 32px; }
+  .category-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .category-name {
+    font-size: 11px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .category-name::before {
+    content: ''; display: inline-block;
+    width: 3px; height: 14px;
+    background: var(--gold); border-radius: 2px;
+  }
+  .category-count { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── MILESTONE GRID ── */
+  .milestone-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .milestone-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px;
+    position: relative; overflow: hidden;
+    transition: all 0.2s;
+  }
+  .milestone-tile.earned {
+    border-color: rgba(245,166,35,0.3);
+    background: rgba(245,166,35,0.04);
+  }
+  .milestone-tile.earned:hover {
+    border-color: rgba(245,166,35,0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+  }
+  .milestone-tile.locked {
+    opacity: 0.45;
+  }
+  .milestone-tile::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: transparent; border-radius: 14px 14px 0 0;
+  }
+  .milestone-tile.earned::before { background: var(--gold); }
+  .milestone-tile.rarity-rare.earned::before    { background: linear-gradient(90deg, #3B82F6, #7AB8F5); }
+  .milestone-tile.rarity-epic.earned::before    { background: linear-gradient(90deg, #7C3AED, #A78BFA); }
+  .milestone-tile.rarity-legendary.earned::before { background: linear-gradient(90deg, var(--gold), #FF6B35); }
+
+  .tile-icon  { font-size: 28px; margin-bottom: 10px; }
+  .tile-name  { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .tile-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+  .tile-hint  { font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+  .tile-rarity {
+    display: inline-block;
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 3px; margin-bottom: 8px;
+  }
+  .rarity-rare .tile-rarity      { background: rgba(59,130,246,0.15); color: #7AB8F5; }
+  .rarity-epic .tile-rarity      { background: rgba(124,58,237,0.15); color: #A78BFA; }
+  .rarity-legendary .tile-rarity { background: rgba(245,166,35,0.15); color: var(--gold); }
+
+  .tile-earned-day {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(245,166,35,0.15);
+    font-size: 10px; color: var(--gold);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .locked-overlay {
+    position: absolute; top: 12px; right: 12px;
+    font-size: 14px; opacity: 0.3;
+  }
+
+  @media (max-width: 600px) {
+    .content-wrap { padding: 20px 16px 40px; }
+    .page-hero    { padding: 24px 16px; }
+    .milestone-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 400px) {
+    .milestone-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-label">🏆 Trophy Wall</div>
+  <div class="page-title">{{ actor.name }}</div>
+  <div class="page-sub">{{ earned_count }} of {{ total_count }} achievements earned · Day {{ actor.game_day }}</div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-card">
+    <div class="progress-header">
+      <div class="progress-label">Career Progress</div>
+      <div class="progress-frac">{{ earned_count }} / {{ total_count }}</div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width: {{ ((earned_count / total_count) * 100) | int if total_count > 0 else 0 }}%"></div>
+    </div>
+    <div class="progress-hint">
+      {% if earned_count == total_count %}
+        🏆 All achievements unlocked. A true legend.
+      {% elif earned_count == 0 %}
+        Start auditioning to earn your first achievement.
+      {% else %}
+        {{ total_count - earned_count }} achievement{{ 's' if (total_count - earned_count) != 1 }} still to unlock.
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- CATEGORIES -->
+  {% for category in milestone_categories %}
+  <div class="category-section">
+    <div class="category-header">
+      <div class="category-name">{{ category.name }}</div>
+      <div class="category-count">{{ category.earned_count }} / {{ category.milestones | length }}</div>
+    </div>
+
+    <div class="milestone-grid">
+      {% for m in category.milestones %}
+      <div class="milestone-tile {{ 'earned' if m.earned else 'locked' }} {% if m.rarity %}rarity-{{ m.rarity }}{% endif %}">
+
+        {% if not m.earned %}
+          <div class="locked-overlay">🔒</div>
+        {% endif %}
+
+        {% if m.rarity %}
+          <div class="tile-rarity">{{ m.rarity }}</div><br>
+        {% endif %}
+
+        <div class="tile-icon">{{ m.icon }}</div>
+        <div class="tile-name">{{ m.name }}</div>
+        <div class="tile-desc">{{ m.description }}</div>
+
+        {% if m.earned %}
+          {% if m.earned_day %}
+          <div class="tile-earned-day">✓ EARNED · DAY {{ m.earned_day }}</div>
+          {% else %}
+          <div class="tile-earned-day">✓ EARNED</div>
+          {% endif %}
+        {% else %}
+          <div class="tile-hint">{{ m.hint }}</div>
+        {% endif %}
+
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div style="text-align:center;margin-top:8px;">
+    <a href="/dashboard/{{ actor.id }}"
+       style="font-size:12px;color:var(--text-muted);text-decoration:none;">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

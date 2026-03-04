@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Auditions — {{ actor.name }}{% endblock %}
+{% block nav_jobs %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 32px 28px;
+    border-bottom: 1px solid var(--border);
+    background: radial-gradient(ellipse at 80% 50%, rgba(245,166,35,0.07) 0%, transparent 50%);
+  }
+  .page-label { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); margin-bottom: 6px; }
+  .page-sub { font-size: 13px; color: var(--text-muted); }
+
+  .content-wrap { max-width: 880px; margin: 0 auto; padding: 28px 32px; }
+
+  /* Quick stats bar */
+  .stats-bar {
+    display: flex; gap: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 28px;
+  }
+  .stats-bar-item {
+    flex: 1; padding: 14px 18px; text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .stats-bar-item:last-child { border-right: none; }
+  .stats-bar-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .stats-bar-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: var(--text); }
+
+  /* Role card */
+  .role-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; margin-bottom: 12px;
+    transition: all 0.2s;
+  }
+  .role-card:hover { border-color: rgba(245,166,35,0.3); transform: translateY(-1px); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+  .role-card.locked { opacity: 0.5; }
+  .role-card.locked:hover { transform: none; box-shadow: none; border-color: var(--border); }
+
+  .role-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .role-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .role-sub { font-size: 12px; color: var(--text-muted); }
+
+  .role-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .role-detail {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .role-detail-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+  .role-detail-val { font-size: 13px; font-weight: 500; color: var(--text); }
+  .role-detail-val.salary { color: var(--green); font-family: 'JetBrains Mono', monospace; }
+
+  .apply-btn {
+    width: 100%; background: var(--gold); color: #0D0D12;
+    border: none; border-radius: 10px; padding: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .apply-btn:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,166,35,0.35); }
+
+  /* Missing requirements */
+  .missing-block {
+    background: rgba(230,57,70,0.06); border: 1px solid rgba(230,57,70,0.15);
+    border-radius: 10px; padding: 14px; margin-top: 4px;
+  }
+  .missing-header { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--red); margin-bottom: 10px; }
+  .missing-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+  .missing-attr { font-size: 12px; color: var(--text-muted); }
+  .missing-vals { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  .section-divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 32px 0 20px;
+  }
+  .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+  .section-divider-text { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+
+  @media (max-width: 600px) {
+    .content-wrap { padding: 20px 16px; }
+    .page-hero { padding: 24px 16px; }
+    .stats-bar { display: grid; grid-template-columns: repeat(2, 1fr); }
+    .stats-bar-item:nth-child(2) { border-right: none; }
+    .stats-bar-item { border-bottom: 1px solid var(--border); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-label">📋 Open Auditions</div>
+  <div class="page-title">Job Board</div>
+  <div class="page-sub">Listings refresh every 7 in-game days · Day {{ actor.game_day }}</div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:16px">
+        {{ '✓' if category == 'success' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- Actor Quick Stats Bar -->
+  <div class="stats-bar">
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Fame</div>
+      <div class="stats-bar-val" style="color:var(--gold)">{{ actor.fame }}</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Acting</div>
+      <div class="stats-bar-val">{{ actor.acting_skill }}</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Presence</div>
+      <div class="stats-bar-val">{{ actor.screen_presence }}</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Looks</div>
+      <div class="stats-bar-val">{{ actor.looks }}</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Fitness</div>
+      <div class="stats-bar-val">{{ actor.fitness }}</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Dancing</div>
+      <div class="stats-bar-val">{{ actor.dancing }}</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-label">Dialogue</div>
+      <div class="stats-bar-val">{{ actor.dialogue }}</div>
+    </div>
+  </div>
+
+  <!-- ELIGIBLE ROLES -->
+  {% if eligible_listings %}
+  <div class="section-header">
+    <div class="section-title" style="color:var(--green)">✓ Roles You Can Apply For ({{ eligible_listings|length }})</div>
+  </div>
+
+  {% for listing in eligible_listings %}
+  <div class="role-card">
+    <div class="role-header">
+      <div>
+        <div class="role-title">{{ listing.movie_title }}</div>
+        <div class="role-sub">{{ listing.role_type }} · {{ listing.genre }}</div>
+      </div>
+      <span class="badge badge-gold">Tier {{ listing.role_tier }}</span>
+    </div>
+
+    <div class="role-details">
+      <div class="role-detail">
+        <div class="role-detail-label">Salary</div>
+        <div class="role-detail-val salary">Rs.{{ "{:,}".format(listing.salary) }}</div>
+      </div>
+      <div class="role-detail">
+        <div class="role-detail-label">Director</div>
+        <div class="role-detail-val">{{ listing.director_name }} {% for i in range(listing.director_stars) %}⭐{% endfor %}</div>
+      </div>
+      <div class="role-detail">
+        <div class="role-detail-label">Budget</div>
+        <div class="role-detail-val">{{ listing.budget }}</div>
+      </div>
+      <div class="role-detail">
+        <div class="role-detail-label">Shoot Duration</div>
+        <div class="role-detail-val">{{ listing.shoot_days }} days</div>
+      </div>
+    </div>
+
+    <form action="/apply/{{ actor.id }}" method="POST">
+      <input type="hidden" name="movie_title" value="{{ listing.movie_title }}">
+      <input type="hidden" name="role_type"   value="{{ listing.role_type }}">
+      <input type="hidden" name="genre"        value="{{ listing.genre }}">
+      <input type="hidden" name="salary"       value="{{ listing.salary }}">
+      <input type="hidden" name="director"     value="{{ listing.director_name }}">
+      <input type="hidden" name="role_tier"    value="{{ listing.role_tier }}">
+      <input type="hidden" name="shoot_days"   value="{{ listing.shoot_days }}">
+      <button type="submit" class="apply-btn">Apply for Audition</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:40px;text-align:center;margin-bottom:28px">
+    <div style="font-size:32px;margin-bottom:12px">🎭</div>
+    <div style="font-size:14px;color:var(--text-muted)">No eligible roles right now. Keep training and check back!</div>
+    <a href="/training/{{ actor.id }}" style="display:inline-block;margin-top:16px;padding:10px 24px;background:var(--gold);color:#0D0D12;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none">💪 Go Train</a>
+  </div>
+  {% endif %}
+
+  <!-- LOCKED ROLES -->
+  {% if ineligible_listings %}
+  <div class="section-divider">
+    <div class="section-divider-line"></div>
+    <div class="section-divider-text">🔒 Out of Reach ({{ ineligible_listings|length }}) — Aspire for these</div>
+    <div class="section-divider-line"></div>
+  </div>
+
+  {% for listing in ineligible_listings %}
+  <div class="role-card locked">
+    <div class="role-header">
+      <div>
+        <div class="role-title">{{ listing.movie_title }}</div>
+        <div class="role-sub">{{ listing.role_type }} · {{ listing.genre }}</div>
+      </div>
+      <span class="badge badge-muted">Tier {{ listing.role_tier }}</span>
+    </div>
+
+    <div class="role-details">
+      <div class="role-detail">
+        <div class="role-detail-label">Salary</div>
+        <div class="role-detail-val" style="font-family:'JetBrains Mono',monospace">Rs.{{ "{:,}".format(listing.salary) }}</div>
+      </div>
+      <div class="role-detail">
+        <div class="role-detail-label">Director</div>
+        <div class="role-detail-val">{{ listing.director_name }}</div>
+      </div>
+    </div>
+
+    <div class="missing-block">
+      <div class="missing-header">What You Need</div>
+      {% for gap in listing.missing %}
+      <div class="missing-row">
+        <span class="missing-attr">{{ gap.attr }}</span>
+        <span class="missing-vals">
+          <span style="color:var(--red)">{{ gap.have }}</span>
+          <span style="color:var(--text-muted)"> / need </span>
+          <span style="color:var(--gold)">{{ gap.need }}</span>
+          <span style="color:var(--text-dim)"> (+{{ gap.gap }})</span>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+</div>
+{% endblock %}

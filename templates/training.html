@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Training — {{ actor.name }}{% endblock %}
+{% block nav_train %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 32px 28px; border-bottom: 1px solid var(--border);
+    background: radial-gradient(ellipse at 20% 60%, rgba(74,144,217,0.08) 0%, transparent 50%);
+    display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px;
+  }
+  .page-label { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--blue); margin-bottom: 8px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); }
+
+  .hero-stats { display: flex; gap: 12px; }
+  .hero-stat-pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px; text-align: center;
+  }
+  .hero-stat-pill .val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; }
+  .hero-stat-pill .lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-top: 2px; }
+
+  .content-wrap { max-width: 720px; margin: 0 auto; padding: 28px 32px; }
+
+  /* Energy display */
+  .energy-strip {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 22px; margin-bottom: 28px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .energy-big { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 2px; line-height: 1; flex-shrink: 0; }
+  .energy-big span { font-size: 24px; color: var(--text-muted); }
+  .energy-info { flex: 1; }
+  .energy-bar-track { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; margin: 8px 0; }
+  .energy-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+  /* Activity card */
+  .activity-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; margin-bottom: 10px;
+    transition: all 0.2s;
+  }
+  .activity-card.available:hover {
+    border-color: rgba(245,166,35,0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .activity-card.locked { opacity: 0.45; }
+
+  .activity-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .activity-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .activity-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+  .activity-costs { display: flex; flex-direction: column; gap: 3px; text-align: right; flex-shrink: 0; margin-left: 16px; }
+  .cost-energy { font-size: 12px; font-weight: 600; color: var(--red); font-family: 'JetBrains Mono', monospace; }
+  .cost-money  { font-size: 12px; font-weight: 600; color: var(--gold); font-family: 'JetBrains Mono', monospace; }
+  .cost-free   { font-size: 12px; font-weight: 600; color: var(--green); }
+
+  .gains-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+  .gain-pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 11px; color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .gain-pill span { color: var(--green); }
+
+  .do-btn {
+    width: 100%; background: var(--gold); color: #0D0D12;
+    border: none; border-radius: 10px; padding: 11px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.3px; cursor: pointer; transition: all 0.2s;
+  }
+  .do-btn:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,166,35,0.3); }
+
+  .locked-reason {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px;
+    font-size: 12px; color: var(--text-muted); text-align: center;
+  }
+
+  /* Rest card */
+  .rest-card {
+    background: var(--surface); border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 24px; margin-top: 20px; text-align: center;
+  }
+  .rest-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .rest-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; max-width: 400px; margin-left: auto; margin-right: auto; }
+  .rest-btn {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; padding: 13px 32px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .rest-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
+
+  @media (max-width: 600px) {
+    .content-wrap { padding: 20px 16px; }
+    .page-hero { padding: 24px 16px 20px; flex-direction: column; align-items: flex-start; }
+    .hero-stats { flex-wrap: wrap; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div>
+    <div class="page-label">💪 Training Ground</div>
+    <div class="page-title">{{ actor.name }}</div>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat-pill">
+      <div class="val" style="color:{% if actor.energy > 50 %}var(--green){% elif actor.energy > 20 %}var(--gold){% else %}var(--red){% endif %}">
+        {{ actor.energy }}
+      </div>
+      <div class="lbl">Energy</div>
+    </div>
+    <div class="hero-stat-pill">
+      <div class="val" style="color:var(--green)">Rs.{{ "{:,.0f}".format(actor.funds / 1000) }}K</div>
+      <div class="lbl">Funds</div>
+    </div>
+    <div class="hero-stat-pill">
+      <div class="val">{{ actor.game_day }}</div>
+      <div class="lbl">Day</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:14px">
+        {{ '✓' if category == 'success' else '✗' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- Energy Strip -->
+  <div class="energy-strip">
+    <div class="energy-big"
+         style="color:{% if actor.energy > 50 %}var(--green){% elif actor.energy > 20 %}var(--gold){% else %}var(--red){% endif %}">
+      {{ actor.energy }}<span>/100</span>
+    </div>
+    <div class="energy-info">
+      <div style="font-size:13px;font-weight:500;margin-bottom:2px">
+        {% if actor.energy > 50 %}Ready to Work{% elif actor.energy > 20 %}Running Low{% else %}Exhausted{% endif %}
+      </div>
+      <div class="energy-bar-track">
+        <div class="energy-bar-fill {% if actor.energy > 50 %}energy-high{% elif actor.energy > 20 %}energy-mid{% else %}energy-low{% endif %}"
+             style="width:{{ actor.energy }}%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        {% if actor.energy == 0 %}No energy left — you must rest.
+        {% elif actor.energy < 30 %}Low energy — rest soon or activities will be unavailable.
+        {% elif actor.energy == 100 %}Fully charged — consider training before ending the day!
+        {% else %}{{ actor.energy }} energy available for activities.{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Cards -->
+  <div class="section-header">
+    <div class="section-title">Available Activities</div>
+  </div>
+
+  {% for activity in activities %}
+  <div class="activity-card {{ 'available' if activity.can_do else 'locked' }}">
+    <div class="activity-header">
+      <div>
+        <div class="activity-title">{{ activity.emoji }} {{ activity.name }}</div>
+        <div class="activity-desc">{{ activity.description }}</div>
+      </div>
+      <div class="activity-costs">
+        <div class="cost-energy">-{{ activity.energy_cost }}⚡</div>
+        {% if activity.money_cost > 0 %}
+          <div class="cost-money">-Rs.{{ "{:,}".format(activity.money_cost) }}</div>
+        {% else %}
+          <div class="cost-free">Free</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="gains-row">
+      {% for attr, (min_g, max_g) in activity.gains.items() %}
+      <div class="gain-pill"><span>+{{ min_g }}–{{ max_g }}</span> {{ attr.replace('_',' ').title() }}</div>
+      {% endfor %}
+    </div>
+
+    {% if activity.can_do %}
+    <form action="/do-activity/{{ actor.id }}" method="POST">
+      <input type="hidden" name="activity_key" value="{{ activity.key }}">
+      <button type="submit" class="do-btn">Do This</button>
+    </form>
+    {% else %}
+    <div class="locked-reason">{{ activity.reason }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <!-- Rest Section -->
+  <div class="rest-card">
+    <div class="rest-title">😴 Rest & Recover</div>
+    <p class="rest-desc">
+      End your day. Energy resets to 100 and the calendar advances.
+      Applications are processed and active films progress.
+      {% if actor.energy == 100 %}You're fully rested — consider training first!{% endif %}
+    </p>
+    <form action="/rest/{{ actor.id }}" method="POST" style="display:inline">
+      <button type="submit" class="rest-btn">
+        ⏭ Sleep & Advance to Day {{ actor.game_day + 1 }}
+      </button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block title %}Crisis — {{ controversy.type }}{% endblock %}
+{% block nav_dash %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 48px 40px 40px;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse at 10% 80%, rgba(230,57,70,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse at 90% 10%, rgba(230,57,70,0.07) 0%, transparent 45%);
+    position: relative; overflow: hidden;
+  }
+  .page-hero::before {
+    content: '🚨';
+    position: absolute; font-size: 200px; opacity: 0.04;
+    top: -20px; right: 40px; pointer-events: none;
+  }
+
+  .crisis-eyebrow {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .crisis-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 4px;
+  }
+  .chip-severity-low    { background: rgba(45,198,83,0.15);  color: var(--green); }
+  .chip-severity-medium { background: rgba(245,166,35,0.15); color: var(--gold); }
+  .chip-severity-high   { background: rgba(230,57,70,0.15);  color: var(--red); }
+  .chip-deadline        { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+  .crisis-headline {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(32px, 5vw, 54px);
+    letter-spacing: 2px; line-height: 1.1;
+    color: var(--text); margin-bottom: 14px;
+  }
+  .crisis-source {
+    font-size: 12px; color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .content-wrap { max-width: 760px; margin: 0 auto; padding: 28px 40px 48px; }
+
+  /* ── TABLOID QUOTE ── */
+  .tabloid-card {
+    background: rgba(230,57,70,0.05);
+    border: 1px solid rgba(230,57,70,0.2);
+    border-left: 4px solid var(--red);
+    border-radius: 0 12px 12px 0;
+    padding: 18px 22px; margin-bottom: 20px;
+  }
+  .tabloid-source { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--red); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+  .tabloid-text   { font-size: 14px; color: #C8B8B8; font-style: italic; line-height: 1.7; }
+
+  /* ── NARRATIVE ── */
+  .narrative-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 22px; margin-bottom: 24px;
+  }
+  .narrative-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+  .narrative-text  { font-size: 14px; color: var(--text-muted); line-height: 1.75; }
+
+  /* ── IMMEDIATE EFFECTS ── */
+  .effects-row {
+    display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .effect-chip {
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .effect-pos { background: rgba(45,198,83,0.1);  color: var(--green); border: 1px solid rgba(45,198,83,0.2); }
+  .effect-neg { background: rgba(230,57,70,0.1);  color: var(--red);   border: 1px solid rgba(230,57,70,0.2); }
+  .effect-neu { background: var(--surface2);      color: var(--text-muted); border: 1px solid var(--border); }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; display: inline-block;
+    width: 3px; height: 14px;
+    background: var(--red); border-radius: 2px;
+  }
+
+  /* ── RESPONSE CARDS ── */
+  .response-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+
+  .response-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .response-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+  .response-card.selected { border-color: var(--gold); background: rgba(245,166,35,0.06); }
+  .response-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--card-accent, var(--border));
+  }
+  .response-card.r-apologise { --card-accent: var(--blue); }
+  .response-card.r-deny      { --card-accent: var(--text-muted); }
+  .response-card.r-lean      { --card-accent: var(--red); }
+  .response-card.r-pr        { --card-accent: var(--green); }
+
+  .response-card input[type="radio"] { display: none; }
+
+  .resp-icon    { font-size: 22px; margin-bottom: 10px; }
+  .resp-name    { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .resp-desc    { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 12px; }
+  .resp-effects { display: flex; flex-direction: column; gap: 4px; }
+  .resp-effect  {
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .resp-effect .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .resp-effect.pos { color: var(--green); }
+  .resp-effect.pos .dot { background: var(--green); }
+  .resp-effect.neg { color: var(--red); }
+  .resp-effect.neg .dot { background: var(--red); }
+  .resp-effect.neu { color: var(--text-muted); }
+  .resp-effect.neu .dot { background: var(--text-muted); }
+  .resp-cost { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--gold); font-family: 'JetBrains Mono', monospace; }
+
+  .submit-btn {
+    width: 100%; padding: 14px;
+    background: var(--red); color: white;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.5px;
+    transition: all 0.2s; margin-bottom: 16px;
+  }
+  .submit-btn:hover { background: #FF4455; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(230,57,70,0.4); }
+
+  /* ── PRECEDENTS ── */
+  .precedents-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 16px;
+  }
+  .precedent-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; padding: 9px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 12px;
+  }
+  .precedent-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .precedent-key { color: var(--text-muted); flex-shrink: 0; max-width: 50%; }
+  .precedent-val { color: var(--text); text-align: right; }
+
+  @media (max-width: 640px) {
+    .response-grid { grid-template-columns: 1fr; }
+    .content-wrap  { padding: 20px 16px 40px; }
+    .page-hero     { padding: 32px 16px; }
+    .effects-row   { gap: 8px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- CRISIS HERO -->
+<div class="page-hero">
+  <div class="crisis-eyebrow">
+    <span class="crisis-chip chip-severity-{{ controversy.severity | lower }}">
+      {{ controversy.severity }} Severity
+    </span>
+    <span class="crisis-chip chip-deadline">
+      Respond by Day {{ controversy.deadline_day }}
+    </span>
+  </div>
+  <div class="crisis-headline">{{ controversy.headline }}</div>
+  <div class="crisis-source">{{ controversy.source_label }} &nbsp;·&nbsp; Day {{ controversy.created_day }}</div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- TABLOID QUOTE -->
+  <div class="tabloid-card">
+    <div class="tabloid-source">{{ controversy.source_label }}</div>
+    <div class="tabloid-text">"{{ controversy.tabloid_quote }}"</div>
+  </div>
+
+  <!-- NARRATIVE -->
+  <div class="narrative-card">
+    <div class="narrative-label">Situation</div>
+    <div class="narrative-text">{{ controversy.narrative }}</div>
+  </div>
+
+  <!-- IMMEDIATE EFFECTS (already applied) -->
+  <div class="effects-row">
+    <div class="effect-chip effect-neu">Already applied when news broke:</div>
+    {% if controversy.immediate_fame > 0 %}
+      <div class="effect-chip effect-pos">+{{ controversy.immediate_fame }} Fame</div>
+    {% elif controversy.immediate_fame < 0 %}
+      <div class="effect-chip effect-neg">{{ controversy.immediate_fame }} Fame</div>
+    {% endif %}
+    {% if controversy.credibility_hit > 0 %}
+      <div class="effect-chip effect-neg">–{{ controversy.credibility_hit }} Credibility</div>
+    {% endif %}
+  </div>
+
+  <!-- RESPONSE FORM -->
+  <div class="section-label">Choose Your Response</div>
+
+  <form action="/controversy/{{ actor.id }}/{{ controversy.id }}/respond" method="POST" id="responseForm">
+    <div class="response-grid">
+
+      <!-- APOLOGISE -->
+      <label class="response-card r-apologise" id="card-apologise" onclick="selectResponse('apologise')">
+        <input type="radio" name="response" value="apologise">
+        <div class="resp-icon">🙏</div>
+        <div class="resp-name">Apologise Publicly</div>
+        <div class="resp-desc">Issue a public statement. Take responsibility. Short-term cost, clean path forward.</div>
+        <div class="resp-effects">
+          {% set ap = template.responses.apologise %}
+          {% if ap.fame != 0 %}
+          <div class="resp-effect {{ 'pos' if ap.fame > 0 else 'neg' }}">
+            <span class="dot"></span>{% if ap.fame > 0 %}+{% endif %}{{ ap.fame }} Fame
+          </div>
+          {% endif %}
+          {% if ap.credibility != 0 %}
+          <div class="resp-effect {{ 'pos' if ap.credibility > 0 else 'neg' }}">
+            <span class="dot"></span>{% if ap.credibility > 0 %}+{% endif %}{{ ap.credibility }} Credibility
+          </div>
+          {% endif %}
+        </div>
+      </label>
+
+      <!-- DENY / STAY SILENT -->
+      <label class="response-card r-deny" id="card-deny" onclick="selectResponse('deny')">
+        <input type="radio" name="response" value="deny">
+        <div class="resp-icon">🤐</div>
+        <div class="resp-name">Stay Silent</div>
+        <div class="resp-desc">Say nothing. Let the news cycle move on. Risky — could backfire or fade quietly.</div>
+        <div class="resp-effects">
+          {% set dn = template.responses.deny %}
+          {% if dn.fame != 0 %}
+          <div class="resp-effect {{ 'pos' if dn.fame > 0 else 'neg' }}">
+            <span class="dot"></span>{% if dn.fame > 0 %}+{% endif %}{{ dn.fame }} Fame
+          </div>
+          {% endif %}
+          {% if dn.credibility != 0 %}
+          <div class="resp-effect {{ 'pos' if dn.credibility > 0 else 'neg' }}">
+            <span class="dot"></span>{% if dn.credibility > 0 %}+{% endif %}{{ dn.credibility }} Credibility
+          </div>
+          {% else %}
+          <div class="resp-effect neu"><span class="dot"></span>No immediate stat change</div>
+          {% endif %}
+        </div>
+      </label>
+
+      <!-- LEAN IN -->
+      <label class="response-card r-lean" id="card-lean" onclick="selectResponse('lean')">
+        <input type="radio" name="response" value="lean">
+        <div class="resp-icon">🔥</div>
+        <div class="resp-name">Lean Into It</div>
+        <div class="resp-desc">Own the narrative. Make it a moment. Fame spikes — but credibility takes a lasting hit.</div>
+        <div class="resp-effects">
+          {% set ln = template.responses.lean %}
+          {% if ln.fame != 0 %}
+          <div class="resp-effect {{ 'pos' if ln.fame > 0 else 'neg' }}">
+            <span class="dot"></span>{% if ln.fame > 0 %}+{% endif %}{{ ln.fame }} Fame
+          </div>
+          {% endif %}
+          {% if ln.credibility != 0 %}
+          <div class="resp-effect {{ 'pos' if ln.credibility > 0 else 'neg' }}">
+            <span class="dot"></span>{% if ln.credibility > 0 %}+{% endif %}{{ ln.credibility }} Credibility
+          </div>
+          {% endif %}
+        </div>
+      </label>
+
+      <!-- PR TEAM -->
+      <label class="response-card r-pr" id="card-pr" onclick="selectResponse('pr')">
+        <input type="radio" name="response" value="pr">
+        <div class="resp-icon">📞</div>
+        <div class="resp-name">Call the PR Team</div>
+        <div class="resp-desc">Pay to make the story disappear. Expensive but effective. No credibility damage.</div>
+        <div class="resp-effects">
+          {% set pr = template.responses.pr %}
+          {% if pr.fame != 0 %}
+          <div class="resp-effect {{ 'pos' if pr.fame > 0 else 'neg' }}">
+            <span class="dot"></span>{% if pr.fame > 0 %}+{% endif %}{{ pr.fame }} Fame
+          </div>
+          {% endif %}
+          {% if pr.credibility != 0 %}
+          <div class="resp-effect {{ 'pos' if pr.credibility > 0 else 'neg' }}">
+            <span class="dot"></span>{% if pr.credibility > 0 %}+{% endif %}{{ pr.credibility }} Credibility
+          </div>
+          {% endif %}
+          {% if pr.cost is defined %}
+          <div class="resp-cost">Cost: ₹{{ "{:,}".format(pr.cost) }}</div>
+          {% endif %}
+        </div>
+      </label>
+
+    </div>
+
+    <button type="submit" class="submit-btn">🚨 Submit My Response</button>
+  </form>
+
+  <!-- INDUSTRY PRECEDENTS -->
+  {% if template.precedents %}
+  <div class="section-label" style="margin-top: 8px;">Industry Precedents</div>
+  <div class="precedents-card">
+    {% for key, val in template.precedents %}
+    <div class="precedent-row">
+      <span class="precedent-key">{{ key }}</span>
+      <span class="precedent-val">{{ val }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="text-align:center;margin-top:8px;">
+    <a href="/dashboard/{{ actor.id }}"
+       style="font-size:12px;color:var(--text-muted);text-decoration:none;">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+</div>
+
+<script>
+  function selectResponse(key) {
+    document.querySelectorAll('.response-card').forEach(c => c.classList.remove('selected'));
+    const card = document.getElementById('card-' + key);
+    if (card) {
+      card.classList.add('selected');
+      const radio = card.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
+    }
+  }
+  // Default select apologise
+  document.addEventListener('DOMContentLoaded', function() {
+    selectResponse('apologise');
+  });
+</script>
+{% endblock %}

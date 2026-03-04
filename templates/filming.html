@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% block title %}On Set — {{ film.movie_title }}{% endblock %}
+{% block nav_films %}active{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    padding: 36px 32px 28px;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse at 15% 60%, rgba(74,144,217,0.10) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 20%, rgba(245,166,35,0.07) 0%, transparent 40%);
+  }
+  .page-label  { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--blue); margin-bottom: 8px; }
+  .page-title  { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 2px; color: var(--text); line-height: 1; }
+  .page-sub    { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+
+  .content-wrap { max-width: 760px; margin: 0 auto; padding: 28px 32px; }
+
+  /* ── FILM STATS STRIP ── */
+  .film-strip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .strip-stat { text-align: center; }
+  .strip-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .strip-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: var(--text); }
+  .strip-value.gold   { color: var(--gold); }
+  .strip-value.blue   { color: var(--blue); }
+  .strip-value.green  { color: var(--green); }
+
+  /* ── QUALITY SCORE BAR ── */
+  .quality-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .quality-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .quality-label  { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+  .quality-value  { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; color: var(--gold); }
+  .quality-track  { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; position: relative; }
+  .quality-fill   { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--blue), #7AB8F5); transition: width 0.4s ease; }
+  .quality-fill.high { background: linear-gradient(90deg, var(--gold), #FFB83A); }
+  .quality-cap-marker {
+    position: absolute; top: -2px; bottom: -2px;
+    width: 2px; background: rgba(255,255,255,0.25);
+    border-radius: 2px;
+  }
+  .quality-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+  .quality-hint span { color: var(--gold); }
+
+  /* ── BURNOUT WARNING ── */
+  .burnout-banner {
+    background: rgba(230,57,70,0.08);
+    border: 1px solid rgba(230,57,70,0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: #E68090;
+  }
+
+  /* ── ALREADY VISITED BANNER ── */
+  .visited-banner {
+    background: rgba(45,198,83,0.07);
+    border: 1px solid rgba(45,198,83,0.2);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--green);
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; display: inline-block;
+    width: 3px; height: 14px;
+    background: var(--gold); border-radius: 2px;
+  }
+
+  /* ── EFFORT CARDS ── */
+  .effort-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .effort-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .effort-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+  .effort-card.selected { border-color: var(--gold); background: rgba(245,166,35,0.06); }
+  .effort-card.color-green  { --card-accent: var(--green); }
+  .effort-card.color-blue   { --card-accent: var(--blue); }
+  .effort-card.color-gold   { --card-accent: var(--gold); }
+  .effort-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    border-radius: 14px 14px 0 0;
+    background: var(--card-accent, var(--border));
+  }
+  .effort-card input[type="radio"] { display: none; }
+  .effort-emoji  { font-size: 24px; margin-bottom: 8px; }
+  .effort-name   { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+  .effort-stat   { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .effort-stat span:last-child { font-family: 'JetBrains Mono', monospace; }
+  .effort-stat .pos  { color: var(--green); }
+  .effort-stat .warn { color: var(--red); }
+  .effort-stat .gold { color: var(--gold); }
+  .effort-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-style: italic; line-height: 1.5; }
+
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--gold);
+    color: #0D0D12;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    margin-bottom: 24px;
+  }
+  .submit-btn:hover { background: #FFB83A; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(245,166,35,0.3); }
+  .submit-btn:disabled { background: var(--surface2); color: var(--text-muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* ── ON-SET EVENT CARD ── */
+  .event-card {
+    background: var(--surface);
+    border: 1px solid rgba(245,166,35,0.3);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .event-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+  .event-eyebrow { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .event-title   { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .event-desc    { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+  .event-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .event-choice-btn {
+    display: block;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.18s;
+    text-align: center;
+    cursor: pointer;
+  }
+  .event-choice-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); }
+  .event-choice-preview { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  @media (max-width: 640px) {
+    .effort-grid { grid-template-columns: 1fr; }
+    .event-choices { grid-template-columns: 1fr; }
+    .film-strip { grid-template-columns: 1fr 1fr; }
+    .content-wrap { padding: 20px 16px; }
+    .page-hero { padding: 24px 16px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-label">🎬 On Set</div>
+  <div class="page-title">{{ film.movie_title }}</div>
+  <div class="page-sub">
+    {{ film.role_type }} · {{ film.genre }} · Dir. {{ film.director }}
+    &nbsp;·&nbsp; Day {{ actor.game_day }}
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash flash-{{ category if category in ['success','error'] else 'info' }}" style="margin-bottom:12px">
+        {{ '✓' if category == 'success' else '✗' if category == 'error' else 'ℹ' }} {{ message }}
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- FILM STATS STRIP -->
+  <div class="film-strip">
+    <div class="strip-stat">
+      <div class="strip-label">Shoot Day</div>
+      <div class="strip-value blue">{{ film.days_completed }} / {{ film.total_shoot_days }}</div>
+    </div>
+    <div class="strip-stat">
+      <div class="strip-label">Quality Score</div>
+      <div class="strip-value gold">{{ film.quality_score }}/100</div>
+    </div>
+    <div class="strip-stat">
+      <div class="strip-label">Your Energy</div>
+      <div class="strip-value {% if actor.energy >= 60 %}green{% elif actor.energy >= 30 %}gold{% else %}" style="color:var(--red){% endif %}">{{ actor.energy }}⚡</div>
+    </div>
+    <div class="strip-stat">
+      <div class="strip-label">Salary</div>
+      <div class="strip-value">₹{{ "{:,}".format(film.salary) }}</div>
+    </div>
+  </div>
+
+  <!-- QUALITY SCORE BAR -->
+  <div class="quality-card">
+    <div class="quality-header">
+      <div class="quality-label">Film Quality</div>
+      <div class="quality-value">{{ film.quality_score }} / 100</div>
+    </div>
+    <div class="quality-track">
+      <div class="quality-fill {% if film.quality_score > auto_quality_cap %}high{% endif %}"
+           style="width: {{ film.quality_score }}%"></div>
+      <!-- Cap marker at AUTO_QUALITY_CAP (60) -->
+      <div class="quality-cap-marker" style="left: {{ auto_quality_cap }}%"></div>
+    </div>
+    {% if film.quality_score <= auto_quality_cap %}
+    <div class="quality-hint">
+      Auto-advance pushes quality to <span>{{ auto_quality_cap }}</span> max.
+      Visit the set and work to push it further.
+    </div>
+    {% else %}
+    <div class="quality-hint" style="color:var(--gold)">
+      ✦ Above the auto-advance ceiling — your visits are making a difference.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- BURNOUT WARNING -->
+  {% if actor.is_tired %}
+  <div class="burnout-banner">
+    <span style="font-size:18px">😓</span>
+    <div>
+      <strong style="color:var(--red);display:block;margin-bottom:2px;">Burnout Debuff Active</strong>
+      You're exhausted. Training gains are –20% for {{ actor.tired_days_left }} more day(s).
+      Pushing further could worsen it.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ALREADY VISITED TODAY -->
+  {% if already_visited %}
+  <div class="visited-banner">
+    <span style="font-size:18px">✓</span>
+    <div>
+      <strong style="display:block;margin-bottom:2px;">Set visited today</strong>
+      You've already put in your work for Day {{ actor.game_day }}. End the day to come back tomorrow.
+    </div>
+  </div>
+
+  <!-- Show effort form as disabled to indicate you've been -->
+  <div class="section-label">Today's Effort — Already Submitted</div>
+  <div class="effort-grid" style="opacity:0.45;pointer-events:none;">
+    {% for opt in effort_options %}
+    <div class="effort-card color-{{ opt.color }}">
+      <div class="effort-emoji">{{ opt.emoji }}</div>
+      <div class="effort-name">{{ opt.label }}</div>
+      <div class="effort-stat"><span>Energy cost</span><span class="warn">–{{ opt.energy_cost }} ⚡</span></div>
+      <div class="effort-stat"><span>Quality gain</span><span class="pos">{{ opt.quality }}</span></div>
+      <div class="effort-stat"><span>Skill gain</span><span class="gold">{{ opt.acting }}</span></div>
+      <div class="effort-note">{{ opt.note }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <button class="submit-btn" disabled>✓ Already Worked Today</button>
+
+  {% else %}
+
+  <!-- ON-SET RANDOM EVENT -->
+  {% if on_set_event %}
+  <div class="event-card">
+    <div class="event-eyebrow">⚡ On-Set Event</div>
+    <div class="event-title">{{ on_set_event.title }}</div>
+    <div class="event-desc">{{ on_set_event.description }}</div>
+    <div class="event-choices">
+      {% for choice in on_set_event.choices %}
+      <a href="/filming/{{ actor.id }}/{{ film.id }}/event/{{ on_set_event.id }}/choice/{{ choice.id }}"
+         class="event-choice-btn">
+        {{ choice.label }}
+        <div class="event-choice-preview">{{ choice.preview }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- EFFORT CHOICE FORM -->
+  <div class="section-label">Choose Today's Effort Level</div>
+
+  <form action="/filming/{{ actor.id }}/{{ film.id }}/work" method="POST" id="effortForm">
+    <div class="effort-grid">
+      {% for opt in effort_options %}
+      <label class="effort-card color-{{ opt.color }}" id="card-{{ opt.key }}"
+             onclick="selectEffort('{{ opt.key }}')">
+        <input type="radio" name="effort" value="{{ opt.key }}"
+               {% if loop.index == 2 %}checked{% endif %}>
+        <div class="effort-emoji">{{ opt.emoji }}</div>
+        <div class="effort-name">{{ opt.label }}</div>
+        <div class="effort-stat">
+          <span>Energy cost</span>
+          <span class="warn">–{{ opt.energy_cost }} ⚡</span>
+        </div>
+        <div class="effort-stat">
+          <span>Quality gain</span>
+          <span class="pos">{{ opt.quality }}</span>
+        </div>
+        <div class="effort-stat">
+          <span>Acting skill</span>
+          <span class="gold">{{ opt.acting }}</span>
+        </div>
+        <div class="effort-note">{{ opt.note }}</div>
+      </label>
+      {% endfor %}
+    </div>
+
+    <button type="submit" class="submit-btn">
+      🎬 Work on Set Today
+    </button>
+  </form>
+
+  {% endif %}
+
+  <!-- BACK LINK -->
+  <div style="text-align:center;">
+    <a href="/films/{{ actor.id }}"
+       style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color 0.2s;"
+       onmouseover="this.style.color='var(--text)'"
+       onmouseout="this.style.color='var(--text-muted)'">
+      ← Back to Filmography
+    </a>
+  </div>
+
+</div>
+
+<script>
+  // Highlight selected effort card
+  function selectEffort(key) {
+    document.querySelectorAll('.effort-card').forEach(c => c.classList.remove('selected'));
+    const card = document.getElementById('card-' + key);
+    if (card) card.classList.add('selected');
+    const radio = card ? card.querySelector('input[type="radio"]') : null;
+    if (radio) radio.checked = true;
+  }
+
+  // Pre-select standard on load
+  document.addEventListener('DOMContentLoaded', function() {
+    selectEffort('standard');
+  });
+</script>
+{% endblock %}

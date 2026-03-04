@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Over — {{ actor.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0A080A; --surface: #16101A; --surface2: #1E181E;
+      --border: rgba(255,255,255,0.06);
+      --red: #E63946; --gold: #F5A623; --green: #2DC653;
+      --text: #E8E8F0; --text-muted: #6E6070;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-weight: 300;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 32px; position: relative; overflow: hidden;
+    }
+
+    /* Red vignette */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(230,57,70,0.08) 70%, rgba(230,57,70,0.18) 100%);
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E");
+      pointer-events: none; opacity: 0.5;
+    }
+
+    /* Fallen clapper board background */
+    .bg-icon {
+      position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      font-size: 480px; opacity: 0.02; pointer-events: none;
+      filter: grayscale(1) brightness(0.3);
+      user-select: none;
+    }
+
+    .panel {
+      max-width: 560px; width: 100%; text-align: center;
+      position: relative; z-index: 1;
+      animation: panelIn 0.6s ease;
+    }
+    @keyframes panelIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+    .over-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 4px;
+      text-transform: uppercase; color: var(--red); margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .over-label::before, .over-label::after {
+      content: ''; flex: 1; max-width: 60px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--red));
+    }
+    .over-label::after { background: linear-gradient(90deg, var(--red), transparent); }
+
+    .over-headline {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 8vw, 72px);
+      letter-spacing: 3px; line-height: 1.05;
+      color: var(--text); margin-bottom: 8px;
+    }
+    .over-headline em { color: var(--red); font-style: normal; }
+
+    .over-sub { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 36px; max-width: 400px; margin-left: auto; margin-right: auto; }
+
+    /* Stats grid */
+    .stats-box {
+      background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; margin-bottom: 28px; text-align: left;
+    }
+    .stats-box-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 20px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .stat-item { }
+    .stat-item-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .stat-item-val { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px; color: var(--text); }
+
+    .cta-btn {
+      display: block; width: 100%;
+      background: var(--red); color: white; border: none;
+      border-radius: 12px; padding: 16px 24px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+      letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s;
+      text-decoration: none; text-align: center; margin-bottom: 12px;
+    }
+    .cta-btn:hover { background: #FF4F5E; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(230,57,70,0.4); }
+
+    .cta-hint { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+    @media (max-width: 500px) {
+      .stats-grid { grid-template-columns: 1fr; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-icon">💀</div>
+
+<div class="panel">
+  <div class="over-label">Career Over</div>
+
+  <h1 class="over-headline">The Money<br><em>Ran Out.</em></h1>
+
+  <p class="over-sub">
+    {{ actor.name }} couldn't keep the lights on.
+    Day {{ actor.game_day }}, with Rs.{{ "{:,}".format(actor.funds) }} in the account
+    and no films in the pipeline.
+    The dream is over — for now.
+  </p>
+
+  <div class="stats-box">
+    <div class="stats-box-title">Final Career Summary</div>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-item-label">Final Rank</div>
+        <div class="stat-item-val" style="font-size:22px;color:var(--gold)">{{ prestige.emoji }} {{ prestige.label }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Days Survived</div>
+        <div class="stat-item-val">{{ stats.game_days }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Films Released</div>
+        <div class="stat-item-val">{{ stats.total_films }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Blockbusters</div>
+        <div class="stat-item-val" style="color:var(--gold)">{{ stats.blockbusters }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Peak Fame</div>
+        <div class="stat-item-val">{{ stats.peak_fame }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Total Earned</div>
+        <div class="stat-item-val" style="color:var(--green);font-size:20px">
+          Rs.{{ "{:,.0f}".format(stats.total_earnings / 100000) }}L
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Applications</div>
+        <div class="stat-item-val">{{ stats.total_apps }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Roles Accepted</div>
+        <div class="stat-item-val">{{ stats.accepted }}</div>
+      </div>
+    </div>
+  </div>
+
+  <a href="/" class="cta-btn">🎬 Start a New Career</a>
+  <div class="cta-hint">Train harder. Apply smarter. Don't go broke this time.</div>
+</div>
+
+</body>
+</html>

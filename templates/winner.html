@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEGEND — {{ actor.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0A0A06; --surface: #141410; --surface2: #1C1C14;
+      --border: rgba(255,255,255,0.07);
+      --gold: #F5A623; --gold-dim: rgba(245,166,35,0.15); --gold-glow: rgba(245,166,35,0.35);
+      --green: #2DC653; --red: #E63946;
+      --text: #F0EDD8; --text-muted: #7A7460;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-weight: 300;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 32px; overflow: hidden; position: relative;
+    }
+
+    /* Gold atmosphere */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(245,166,35,0.12) 0%, transparent 55%),
+        radial-gradient(ellipse at 20% 80%, rgba(245,166,35,0.06) 0%, transparent 40%);
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; opacity: 0.4;
+    }
+
+    .bg-crown {
+      position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      font-size: 600px; opacity: 0.018; pointer-events: none;
+      filter: grayscale(1) sepia(1);
+      user-select: none; animation: crownRotate 60s linear infinite;
+    }
+    @keyframes crownRotate { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    .panel {
+      max-width: 600px; width: 100%; text-align: center;
+      position: relative; z-index: 1;
+      animation: panelIn 0.8s ease;
+    }
+    @keyframes panelIn { from { opacity: 0; transform: translateY(28px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    .legend-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 5px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+    .legend-label::before, .legend-label::after {
+      content: ''; flex: 1; max-width: 80px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold));
+    }
+    .legend-label::after { background: linear-gradient(90deg, var(--gold), transparent); }
+
+    .legend-word {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(72px, 14vw, 120px);
+      letter-spacing: 8px; line-height: 1;
+      color: var(--gold);
+      text-shadow:
+        0 0 30px rgba(245,166,35,0.5),
+        0 0 80px rgba(245,166,35,0.25),
+        0 0 160px rgba(245,166,35,0.12);
+      animation: glowPulse 2.5s ease-in-out infinite;
+      margin-bottom: 8px;
+    }
+    @keyframes glowPulse {
+      0%, 100% { text-shadow: 0 0 30px rgba(245,166,35,0.5), 0 0 80px rgba(245,166,35,0.25), 0 0 160px rgba(245,166,35,0.12); }
+      50%       { text-shadow: 0 0 40px rgba(245,166,35,0.8), 0 0 100px rgba(245,166,35,0.4), 0 0 200px rgba(245,166,35,0.2); }
+    }
+
+    .actor-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(28px, 5vw, 42px);
+      letter-spacing: 3px; color: var(--text); margin-bottom: 20px;
+    }
+
+    .industry-line {
+      font-size: 14px; line-height: 1.8; color: #A8A090; margin-bottom: 36px;
+      max-width: 420px; margin-left: auto; margin-right: auto;
+    }
+    .industry-line strong { color: var(--gold); }
+
+    /* Hall of fame stats */
+    .hof-box {
+      background: rgba(245,166,35,0.03); border: 1px solid rgba(245,166,35,0.2);
+      border-radius: 18px; padding: 28px; margin-bottom: 28px; text-align: left;
+      position: relative; overflow: hidden;
+    }
+    .hof-box::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .hof-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 20px;
+      padding-bottom: 14px; border-bottom: 1px solid rgba(245,166,35,0.1);
+    }
+    .hof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .hof-item { }
+    .hof-item-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .hof-item-val { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 1px; color: var(--text); }
+
+    .cta-primary {
+      display: block; width: 100%; background: var(--gold); color: #0A0A06;
+      border: none; border-radius: 12px; padding: 17px 24px;
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+      letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s;
+      text-decoration: none; text-align: center; margin-bottom: 12px;
+    }
+    .cta-primary:hover { background: #FFB83A; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(245,166,35,0.5); }
+
+    .cta-hint { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+    /* Confetti particles */
+    .particle {
+      position: fixed; width: 6px; height: 6px; border-radius: 1px;
+      pointer-events: none; animation: confettiFall linear forwards;
+      z-index: 0;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    @media (max-width: 500px) {
+      .hof-grid { grid-template-columns: 1fr; gap: 12px; }
+      .legend-word { font-size: 72px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-crown">👑</div>
+
+<div class="panel">
+  <div class="legend-label">👑 All Time Great</div>
+
+  <div class="legend-word">LEGEND</div>
+  <div class="actor-name">{{ actor.name }}</div>
+
+  <p class="industry-line">
+    From Day 1 to Day {{ actor.game_day }}.
+    From nothing to the greatest name in
+    <strong>{% if actor.industry == 'bolly' %}Bollywood{% elif actor.industry == 'kolly' %}Kollywood{% else %}Tollywood{% endif %}</strong>.
+    The industry will <strong>never</strong> forget this career.
+  </p>
+
+  <div class="hof-box">
+    <div class="hof-title">🏆 Hall of Fame — Career Stats</div>
+    <div class="hof-grid">
+      <div class="hof-item">
+        <div class="hof-item-label">Career Span</div>
+        <div class="hof-item-val" style="color:var(--gold)">{{ stats.game_days }}d</div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Final Fame</div>
+        <div class="hof-item-val" style="color:var(--gold)">{{ actor.fame }}<span style="font-size:16px;color:var(--text-muted)">/100</span></div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Films Released</div>
+        <div class="hof-item-val">{{ stats.total_films }}</div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Blockbusters</div>
+        <div class="hof-item-val" style="color:var(--gold)">{{ stats.blockbusters }}</div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Hits</div>
+        <div class="hof-item-val" style="color:var(--green)">{{ stats.hits }}</div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Flops</div>
+        <div class="hof-item-val" style="color:var(--red)">{{ stats.flops }}</div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Total Earned</div>
+        <div class="hof-item-val" style="color:var(--green);font-size:22px">
+          Rs.{{ "{:,.1f}".format(stats.total_earnings / 100000) }}L
+        </div>
+      </div>
+      <div class="hof-item">
+        <div class="hof-item-label">Final Balance</div>
+        <div class="hof-item-val" style="font-size:22px">
+          Rs.{{ "{:,.1f}".format(actor.funds / 100000) }}L
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <a href="/" class="cta-primary">👑 Start a New Legacy</a>
+  <div class="cta-hint">Can you do it faster? A different industry? A harder persona?</div>
+</div>
+
+<script>
+  // Confetti burst
+  const colors = ['#F5A623','#FFD700','#FFFFFF','#FFF5CC','#FFB83A'];
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'particle';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.width = (4 + Math.random() * 6) + 'px';
+      el.style.height = (4 + Math.random() * 6) + 'px';
+      el.style.animationDuration = (3 + Math.random() * 4) + 's';
+      el.style.animationDelay = (Math.random() * 2) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 8000);
+    }, i * 40);
+  }
+</script>
+
+</body>
+</html>
