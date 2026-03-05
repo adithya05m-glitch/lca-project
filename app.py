@@ -10,7 +10,16 @@ from milestones  import check_and_award, get_milestone_context
 from invitations import maybe_generate_invitation
 import random
 import os
+import json
 from story import get_or_create_beat, beat_triggered, BEAT_DEFINITIONS
+from content_pool import (
+    generate_content_pool,
+    get_random_movie,
+    get_random_director,
+    get_random_controversy,
+    get_random_onset_event,
+    get_review,
+)
 
 app = Flask(__name__)
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///game.db')
@@ -143,6 +152,19 @@ class StoryBeat(db.Model):
     narrative = db.Column(db.Text)
     game_day  = db.Column(db.Integer)
 
+class ActorContentPool(db.Model):
+    id       = db.Column(db.Integer, primary_key=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey('actor.id'),
+                         nullable=False, unique=True)
+    pool_json = db.Column(db.Text)   # full JSON blob of generated content
+
+    def get_pool(self):
+        import json
+        try:
+            return json.loads(self.pool_json) if self.pool_json else {}
+        except Exception:
+            return {}
+
 # ─────────────────────────────────────────────────────
 #  PERSONA STARTING STATS
 # ─────────────────────────────────────────────────────
@@ -243,6 +265,13 @@ EFFORT_OPTIONS = [
     },
 ]
 
+
+def load_pool(actor_id):
+    """Load the content pool for an actor. Returns dict."""
+    entry = ActorContentPool.query.filter_by(actor_id=actor_id).first()
+    return entry.get_pool() if entry else {}
+
+
 # ─────────────────────────────────────────────────────
 #  ROUTES
 # ─────────────────────────────────────────────────────
@@ -284,6 +313,16 @@ def create_actor():
 
     db.session.add(actor)
     db.session.commit()
+
+    # Generate content pool for this actor
+    pool_data  = generate_content_pool(actor)
+    pool_entry = ActorContentPool(
+        actor_id  = actor.id,
+        pool_json = json.dumps(pool_data),
+    )
+    db.session.add(pool_entry)
+    db.session.commit()
+
 
 
     beat = get_or_create_beat('arrival', actor, {}, db, StoryBeat)
@@ -337,7 +376,9 @@ def job_board(actor_id):
     story_beat    = StoryBeat.query.get(story_beat_id) if story_beat_id else None
 
     # Generate fresh listings for the actor's industry
-    listings = generate_job_board(actor.industry, count=10)
+    pool     = load_pool(actor_id)
+    listings = generate_job_board(actor.industry, count=10,
+                                  pool=pool)
 
     # Check eligibility for each listing and attach the result
     for listing in listings:
@@ -486,6 +527,19 @@ def rest(actor_id):
 
     old_prestige_label = get_prestige(actor, Film.query.filter_by(actor_id=actor_id, status='released').all()).get('label')
 
+    released_films_check = Film.query.filter_by(
+        actor_id=actor_id, status='released'
+    ).all()
+    pool = load_pool(actor_id)
+    for film in released_films_check:
+        if not film.review and film.box_office_result:
+            film.review = get_review(
+                pool,
+                film.box_office_result,
+                actor.name,
+                film.movie_title,
+            )
+
     # 3. Advance the day and restore energy
     rest_result = do_rest(actor)
 
@@ -502,35 +556,35 @@ def rest(actor_id):
         actor_id=actor_id, resolved=False
     ).first()
     if not existing_controversy:
-        controversy_template = maybe_trigger_controversy(actor)
-        if controversy_template:
+        pool = load_pool(actor_id)
+        controversy_data = get_random_controversy(pool)
+        if controversy_data and random.random() < 0.10:
             new_c = Controversy(
                 actor_id        = actor_id,
-                type            = controversy_template['type'],
-                severity        = controversy_template['severity'],
-                headline        = controversy_template['headline'],
-                narrative       = controversy_template['narrative'],
-                tabloid_quote   = controversy_template['tabloid_quote'],
-                source_label    = controversy_template['source_label'],
+                type            = controversy_data['type'],
+                severity        = controversy_data['severity'],
+                headline        = controversy_data['headline'],
+                narrative       = controversy_data['narrative'],
+                tabloid_quote   = controversy_data['tabloid_quote'],
+                source_label    = controversy_data['source_label'],
                 deadline_day    = actor.game_day + 3,
                 created_day     = actor.game_day,
-                immediate_fame  = controversy_template['immediate_fame'],
-                credibility_hit = controversy_template['credibility_hit'],
+                immediate_fame  = controversy_data.get('immediate_fame', 5),
+                credibility_hit = controversy_data.get('credibility_hit', 10),
                 resolved        = False,
             )
-            # Apply immediate effects
-            actor.fame        = max(0, min(100, actor.fame        + controversy_template['immediate_fame']))
-            actor.credibility = max(0, actor.credibility - controversy_template['credibility_hit'])
+            actor.fame        = max(0, min(100, actor.fame + controversy_data.get('immediate_fame', 5)))
+            actor.credibility = max(0, actor.credibility - controversy_data.get('credibility_hit', 10))
             db.session.add(new_c)
             flash('🚨 A controversy has broken out. Check your Dashboard to handle it.', 'error')
 
             if not beat_triggered('first_controversy', actor_id, StoryBeat):
-                        ctx = {
-                            'headline': controversy_template['headline'],
-                            'type':     controversy_template['type'],
-                        }
-                        c_beat = get_or_create_beat('first_controversy', actor, ctx, db, StoryBeat)
-                        pending_story_beat_id = c_beat.id
+                ctx = {
+                    'headline': controversy_data['headline'],
+                    'type':     controversy_data['type'],
+                }
+                c_beat = get_or_create_beat('first_controversy', actor, ctx, db, StoryBeat)
+                pending_story_beat_id = c_beat.id
 
         # Check and award milestones
     released_films_for_stats = Film.query.filter_by(actor_id=actor_id, status='released').all()
@@ -562,6 +616,8 @@ def rest(actor_id):
                 {'rank_label': new_prestige.get('label')}, db, StoryBeat)
             p_beat.beat_key = prestige_beat_key  # unique key per rank
             pending_story_beat_id = p_beat.id
+    
+    
 
     db.session.commit()
     flash(rest_result['message'], 'success')

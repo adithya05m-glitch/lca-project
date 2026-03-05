@@ -1,8 +1,7 @@
 import random
 
 # ─────────────────────────────────────────────────────
-#  ROLE POOLS — the raw ingredients for listings
-#  All names are fictional and original
+#  FALLBACK POOLS — used when no AI pool is available
 # ─────────────────────────────────────────────────────
 
 MOVIE_TITLES = {
@@ -39,7 +38,6 @@ ROLE_TYPES = [
     {'type': 'Background Role', 'tier': 'D'},
 ]
 
-# Fictional directors — inspired by industry styles but entirely made up
 DIRECTORS = {
     'bolly': [
         {'name': 'Kiran Johari',        'stars': 5},
@@ -53,12 +51,12 @@ DIRECTORS = {
     ],
     'kolly': [
         {'name': 'Kani Rathnam',        'stars': 5},
-        {'name': 'Shankarra',            'stars': 5},
+        {'name': 'Shankarra',           'stars': 5},
         {'name': 'Gokesh Janagaraaj',   'stars': 5},
         {'name': 'B.R. Murugadaas',     'stars': 4},
-        {'name': 'Cutlee Kumaar',        'stars': 4},
-        {'name': 'Kathrimaaran',         'stars': 4},
-        {'name': 'Signesh Vivaan',     'stars': 3},
+        {'name': 'Cutlee Kumaar',       'stars': 4},
+        {'name': 'Kathrimaaran',        'stars': 4},
+        {'name': 'Signesh Vivaan',      'stars': 3},
         {'name': 'S.K. Kavikumaar',     'stars': 3},
     ],
     'tolly': [
@@ -80,27 +78,24 @@ BUDGETS = ['Low', 'Mid', 'High', 'Mega']
 # ─────────────────────────────────────────────────────
 
 SALARY_RANGE = {
-    'A': (2000000, 10000000),   # 20L–1Cr — unchanged
-    'B': (500000,  2000000),    # 5L–20L — unchanged
-    'C': (40000,   200000),     # 40K–2L — reduced from 1L–5L
-    'D': (5000,    30000),      # 5K–30K — reduced from 10K–1L
+    'A': (2000000, 10000000),
+    'B': (500000,  2000000),
+    'C': (40000,   200000),
+    'D': (5000,    30000),
 }
 
 # ─────────────────────────────────────────────────────
-#  MINIMUM REQUIREMENTS BY ROLE TIER
+#  REQUIREMENTS
 # ─────────────────────────────────────────────────────
 
 def get_requirements(role_tier, genre):
-    """Returns minimum attribute requirements for a role."""
     base = {
         'A': {'acting_skill': 45, 'screen_presence': 40, 'fame': 40, 'looks': 35},
         'B': {'acting_skill': 30, 'screen_presence': 25, 'fame': 20, 'looks': 20},
         'C': {'acting_skill': 15, 'screen_presence': 15, 'fame': 5,  'looks': 10},
         'D': {'acting_skill': 5,  'screen_presence': 5,  'fame': 0,  'looks': 5},
     }
-
     reqs = base[role_tier].copy()
-
     if genre == 'Action':
         reqs['fitness'] = {'A': 50, 'B': 35, 'C': 20, 'D': 10}[role_tier]
     if genre == 'Romance':
@@ -110,28 +105,47 @@ def get_requirements(role_tier, genre):
     if genre in ['Drama', 'Biographical']:
         reqs['acting_skill'] = reqs.get('acting_skill', 0) + 10
         reqs['dialogue'] = {'A': 45, 'B': 30, 'C': 15, 'D': 5}[role_tier]
-
     return reqs
 
 # ─────────────────────────────────────────────────────
 #  GENERATE A SINGLE LISTING
+#  Accepts optional pool dict from content_pool.py
 # ─────────────────────────────────────────────────────
 
-def generate_listing(industry):
-    """Creates one randomised job listing for the given industry."""
+def generate_listing(industry, pool=None):
     role_info = random.choice(ROLE_TYPES)
-    role_tier  = role_info['tier']
-    genre      = random.choice(GENRES)
-    budget     = random.choice(BUDGETS)
+    role_tier = role_info['tier']
+    genre     = random.choice(GENRES)
+    budget    = random.choice(BUDGETS)
 
-    # Pick directors from the right industry pool
-    director_pool = DIRECTORS.get(industry, DIRECTORS['bolly'])
+    # ── Movie title: use AI pool if available ──
+    if pool and pool.get('movies'):
+        movie = random.choice(pool['movies'])
+        movie_title = movie.get('title', 'Untitled')
+        # Use the genre from the pool movie if available
+        genre = movie.get('genre', genre)
+        budget = movie.get('budget', budget)
+    else:
+        title_pool  = MOVIE_TITLES.get(industry, MOVIE_TITLES['bolly'])
+        movie_title = random.choice(title_pool)
 
-    # Lower tier roles get lower-rated directors more often
-    if role_tier in ['C', 'D']:
-        director_pool = [d for d in director_pool if d['stars'] <= 3] or director_pool
-
-    director = random.choice(director_pool)
+    # ── Director: use AI pool if available ──
+    if pool and pool.get('directors'):
+        director_pool = pool['directors']
+        # Lower tier roles get lower-rated directors
+        if role_tier in ['C', 'D']:
+            filtered = [d for d in director_pool if d.get('stars', 3) <= 3]
+            director_pool = filtered if filtered else director_pool
+        director_data = random.choice(director_pool)
+        director = {
+            'name':  director_data.get('name', 'Unknown Director'),
+            'stars': director_data.get('stars', 3),
+        }
+    else:
+        director_pool = DIRECTORS.get(industry, DIRECTORS['bolly'])
+        if role_tier in ['C', 'D']:
+            director_pool = [d for d in director_pool if d['stars'] <= 3] or director_pool
+        director = random.choice(director_pool)
 
     salary_min, salary_max = SALARY_RANGE[role_tier]
     salary = random.randrange(salary_min, salary_max, 10000)
@@ -143,8 +157,6 @@ def generate_listing(industry):
         'D': random.randint(1, 10),
     }[role_tier]
 
-    title_pool  = MOVIE_TITLES.get(industry, MOVIE_TITLES['bolly'])
-    movie_title = random.choice(title_pool)
     requirements = get_requirements(role_tier, genre)
 
     return {
@@ -162,31 +174,23 @@ def generate_listing(industry):
     }
 
 # ─────────────────────────────────────────────────────
-#  GENERATE A FULL BOARD OF LISTINGS
+#  GENERATE FULL BOARD
+#  pool param is optional — falls back gracefully
 # ─────────────────────────────────────────────────────
 
-def generate_job_board(industry, count=10):
-    """Returns a list of job listings for the board."""
+def generate_job_board(industry, count=10, pool=None):
     listings = []
     for _ in range(count):
-        listings.append(generate_listing(industry))
-
-    # Sort by salary descending so best roles appear first
+        listings.append(generate_listing(industry, pool=pool))
     listings.sort(key=lambda x: x['salary'], reverse=True)
     return listings
 
 # ─────────────────────────────────────────────────────
-#  CHECK IF ACTOR MEETS REQUIREMENTS
+#  ELIGIBILITY CHECK — unchanged
 # ─────────────────────────────────────────────────────
 
 def check_eligibility(actor, requirements):
-    """
-    Returns a dict with:
-      - eligible (bool): whether actor meets all requirements
-      - missing (list): which requirements they fall short on
-    """
     missing = []
-
     attr_map = {
         'acting_skill':    actor.acting_skill,
         'screen_presence': actor.screen_presence,
@@ -196,7 +200,6 @@ def check_eligibility(actor, requirements):
         'dancing':         actor.dancing,
         'dialogue':        actor.dialogue,
     }
-
     for attr, min_val in requirements.items():
         actor_val = attr_map.get(attr, 0)
         if actor_val < min_val:
@@ -204,10 +207,9 @@ def check_eligibility(actor, requirements):
                 'attr':  attr.replace('_', ' ').title(),
                 'have':  actor_val,
                 'need':  min_val,
-                'gap':   min_val - actor_val
+                'gap':   min_val - actor_val,
             })
-
     return {
         'eligible': len(missing) == 0,
-        'missing':  missing
+        'missing':  missing,
     }
